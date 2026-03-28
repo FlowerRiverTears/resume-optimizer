@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: resume-optimizer
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+  messages:
+    encoding: UTF-8
+
+  web:
+    filter:
+      hide-parameters: true
+
+
+
+  jackson:
+    default-property-inclusion: always
+    generator:
+      write-enums-using-to-string: true
+
+server:
+  port: 9001
