@@ -348,7 +348,8 @@ public class ResumeAnalysisService {
 
     // ==================== 生成建议 ====================
     private List<String> generateSuggestions(String text, Set<String> resumeSkills,
-                                            Set<String> matched, Set<String> missing, int matchScore) {
+                                            Set<String> matched, Set<String> missing, int matchScore,
+                                            Map<String, AnalysisResponse.CategoryScore> categoryScores) {
         List<String> suggestions = new ArrayList<>();
 
         // 结构建议
@@ -373,6 +374,29 @@ public class ResumeAnalysisService {
             suggestions.add("简历内容较长，建议精简到1-2页");
         }
 
+        // 分类针对性建议
+        if (categoryScores != null && !categoryScores.isEmpty()) {
+            // 找出得分最低的分类
+            String lowestCategory = null;
+            int lowestScore = 100;
+            for (Map.Entry<String, AnalysisResponse.CategoryScore> entry : categoryScores.entrySet()) {
+                AnalysisResponse.CategoryScore cs = entry.getValue();
+                // 忽略不要求该分类的（totalCount=0 表示不要求）
+                if (cs.getTotalCount() > 0 && cs.getScore() < lowestScore) {
+                    lowestScore = cs.getScore();
+                    lowestCategory = entry.getKey();
+                }
+            }
+
+            // 根据最低分类给出针对性建议
+            if (lowestCategory != null && lowestScore < 50) {
+                String categorySuggestion = getCategorySuggestion(lowestCategory, categoryScores.get(lowestCategory));
+                if (categorySuggestion != null) {
+                    suggestions.add(categorySuggestion);
+                }
+            }
+        }
+
         // 缺失技能建议 - 根据实际缺失的技能生成针对性建议
         if (!missing.isEmpty()) {
             StringBuilder skillSuggestion = new StringBuilder("建议补充: ");
@@ -381,16 +405,17 @@ public class ResumeAnalysisService {
             // 按类别组织缺失技能
             Set<String> missingBackend = new HashSet<>(Arrays.asList(
                 "c#", "java", "springboot", "springcloud", "nodejs", "python",
-                "webapi", "restful", "api", "graphql", "jwt"
+                "webapi", "restful", "api", "graphql", "jwt", "kafka", "rabbitmq",
+                "swagger", "mvc", "ef", "linq", "asp.net"
             ));
             Set<String> missingFrontend = new HashSet<>(Arrays.asList(
-                "vue", "react", "angular", "javascript", "typescript"
+                "vue", "react", "angular", "javascript", "typescript", "jquery", "bootstrap"
             ));
             Set<String> missingDb = new HashSet<>(Arrays.asList(
-                "mysql", "sqlserver", "postgresql", "mongodb", "redis", "oracle"
+                "mysql", "sqlserver", "postgresql", "mongodb", "redis", "oracle", "kafka", "rabbitmq"
             ));
             Set<String> missingDevOps = new HashSet<>(Arrays.asList(
-                "git", "docker", "kubernetes", "linux", "nginx", "jenkins", "ci/cd"
+                "git", "docker", "kubernetes", "linux", "nginx", "jenkins", "ci/cd", "maven", "gradle"
             ));
 
             Set<String> currentMissing = new HashSet<>(missing);
@@ -398,17 +423,17 @@ public class ResumeAnalysisService {
             // 检查各类别
             currentMissing.retainAll(missingBackend);
             if (!currentMissing.isEmpty()) {
-                skillSuggestion.append("后端技能(").append(String.join(", ", currentMissing)).append(") ");
+                skillSuggestion.append("后端(").append(String.join(", ", currentMissing)).append(") ");
             }
             currentMissing = new HashSet<>(missing);
             currentMissing.retainAll(missingFrontend);
             if (!currentMissing.isEmpty()) {
-                skillSuggestion.append("前端技能(").append(String.join(", ", currentMissing)).append(") ");
+                skillSuggestion.append("前端(").append(String.join(", ", currentMissing)).append(") ");
             }
             currentMissing = new HashSet<>(missing);
             currentMissing.retainAll(missingDb);
             if (!currentMissing.isEmpty()) {
-                skillSuggestion.append("数据库(").append(String.join(", ", currentMissing)).append(") ");
+                skillSuggestion.append("数据库/中间件(").append(String.join(", ", currentMissing)).append(") ");
             }
             currentMissing = new HashSet<>(missing);
             currentMissing.retainAll(missingDevOps);
@@ -432,6 +457,42 @@ public class ResumeAnalysisService {
         }
 
         return suggestions;
+    }
+
+    /**
+     * 根据分类获取针对性建议
+     */
+    private String getCategorySuggestion(String category, AnalysisResponse.CategoryScore cs) {
+        if (cs.getTotalCount() == 0) return null; // 不要求该分类
+
+        String categoryName = getCategoryName(category);
+        int score = cs.getScore();
+        int matched = cs.getMatchedCount();
+        int total = cs.getTotalCount();
+        int missing = total - matched;
+
+        if (score >= 80) {
+            return categoryName + "技能匹配良好，继续保持";
+        } else if (score >= 50) {
+            return categoryName + "技能基本匹配，但缺少 " + missing + " 项，建议加强";
+        } else if (score >= 30) {
+            return categoryName + "技能缺口较大，建议系统学习相关技术栈";
+        } else {
+            return categoryName + "技能严重不足，建议从基础开始学习并补充项目经验";
+        }
+    }
+
+    /**
+     * 获取分类中文名称
+     */
+    private String getCategoryName(String category) {
+        switch (category) {
+            case "frontend": return "前端";
+            case "backend": return "后端";
+            case "database": return "数据库/中间件";
+            case "devops": return "DevOps/工具";
+            default: return "其他";
+        }
     }
 
     private boolean containsKeyword(String text, Set<String> keywords) {
@@ -479,30 +540,33 @@ public class ResumeAnalysisService {
     // ==================== 分类评分计算（用于雷达图）====================
     /**
      * 计算各技能分类的匹配度
+     * 确保分类互斥，每个技能只属于一个分类
      */
     private Map<String, AnalysisResponse.CategoryScore> calculateCategoryScores(
             Set<String> resumeSkills, Set<String> jobSkills) {
         Map<String, AnalysisResponse.CategoryScore> categoryScores = new LinkedHashMap<>();
 
-        // 定义技能分类（用于雷达图展示）
+        // 定义互斥的技能分类（每个技能只属于一个分类）
         Map<String, Set<String>> chartCategories = new LinkedHashMap<>();
         chartCategories.put("frontend", new HashSet<>(Arrays.asList(
             "vue", "react", "angular", "javascript", "typescript", "html", "css",
-            "jquery", "bootstrap", "ajax", "es6"
+            "jquery", "bootstrap", "ajax", "es6", "sass", "less", "webpack"
         )));
         chartCategories.put("backend", new HashSet<>(Arrays.asList(
             "java", "c#", "python", "springboot", "springcloud", "nodejs",
-            "asp.net", "django", "flask", "api", "webapi", "restful"
+            "asp.net", "django", "flask", "api", "webapi", "restful",
+            "graphql", "grpc", "websocket", "jwt", "oauth"
         )));
         chartCategories.put("database", new HashSet<>(Arrays.asList(
             "mysql", "sqlserver", "postgresql", "mongodb", "redis", "oracle",
-            "elasticsearch", "sql"
+            "elasticsearch", "sql", "kafka", "rabbitmq", "activemq"
         )));
         chartCategories.put("devops", new HashSet<>(Arrays.asList(
             "git", "docker", "kubernetes", "linux", "jenkins", "nginx",
-            "ci/cd", "tomcat", "aws", "aliyun"
+            "ci/cd", "tomcat", "aws", "aliyun", "azure", "gcp", "maven", "gradle"
         )));
 
+        // 统计各类别的匹配情况
         for (Map.Entry<String, Set<String>> entry : chartCategories.entrySet()) {
             String categoryName = entry.getKey();
             Set<String> categorySkills = entry.getValue();
@@ -517,7 +581,15 @@ public class ResumeAnalysisService {
 
             int totalCount = requiredInCategory.size();
             int matchedCount = matchedInCategory.size();
-            int score = totalCount > 0 ? (int) Math.round(100.0 * matchedCount / totalCount) : 0;
+
+            // 计算得分：如果职位没有该分类要求，得分100（不要求）；否则按匹配率计算
+            int score;
+            if (totalCount == 0) {
+                score = 100; // 不要求该分类技能，视为满分
+            } else {
+                score = (int) Math.round(100.0 * matchedCount / totalCount);
+                score = Math.min(100, Math.max(0, score)); // 确保在0-100范围内
+            }
 
             categoryScores.put(categoryName, AnalysisResponse.CategoryScore.builder()
                     .category(categoryName)
@@ -573,11 +645,17 @@ public class ResumeAnalysisService {
         suggestionMap.put("api", "建议学习 API 设计和 Swagger 文档编写");
         suggestionMap.put("springboot", "建议学习 Spring Boot 自动配置原理");
         suggestionMap.put("springcloud", "建议学习 Spring Cloud 微服务组件");
-        suggestionMap.put("kubernetes", "建议学习 K8s 部署和 Helm Charts");
         suggestionMap.put("aws", "建议学习 AWS 云服务架构设计");
         suggestionMap.put("linux", "建议学习 Linux 系统管理和 Shell 脚本");
         suggestionMap.put("javascript", "建议学习 ES6+ 新特性和异步编程");
         suggestionMap.put("typescript", "建议学习 TypeScript 类型系统和装饰器");
+        suggestionMap.put("kafka", "建议学习 Kafka 消息队列特性和流处理");
+        suggestionMap.put("rabbitmq", "建议学习 RabbitMQ 消息队列和异步通信");
+        suggestionMap.put("swagger", "建议学习 Swagger/OpenAPI 文档自动生成");
+        suggestionMap.put("mvc", "建议学习 MVC 架构模式和分层设计");
+        suggestionMap.put("ef", "建议学习 Entity Framework  ORM 框架");
+        suggestionMap.put("linq", "建议学习 LINQ 语言集成查询");
+        suggestionMap.put("asp.net", "建议深入学习 ASP.NET Core 框架");
 
         for (String skill : missingSkills) {
             String category = getSkillCategory(skill);
@@ -603,28 +681,36 @@ public class ResumeAnalysisService {
     }
 
     /**
-     * 获取技能所属分类
+     * 获取技能所属分类（互斥分类）
      */
     private String getSkillCategory(String skill) {
-        if (Arrays.asList("vue", "react", "angular", "javascript", "typescript",
-            "html", "css", "jquery", "bootstrap", "ajax", "es6", "jqueryui",
-            "tailwindcss", "materialui", "elementui", "antd", "nuxt", "nextjs").contains(skill)) {
-            return "frontend";
-        }
-        if (Arrays.asList("java", "c#", "python", "springboot", "springcloud",
-            "nodejs", "asp.net", "django", "flask", "api", "webapi", "restful",
-            "graphql", "grpc", "websocket", "jwt", "oauth", "lambda", "linq").contains(skill)) {
-            return "backend";
-        }
-        if (Arrays.asList("mysql", "sqlserver", "postgresql", "mongodb", "redis",
-            "oracle", "elasticsearch", "sql", "memcache", "sqlite", "mariadb").contains(skill)) {
-            return "database";
-        }
-        if (Arrays.asList("git", "docker", "kubernetes", "linux", "jenkins",
-            "nginx", "ci/cd", "tomcat", "aws", "aliyun", "azure", "github",
-            "gitlab", "svn", "helm", "github-actions", "gitlab-ci").contains(skill)) {
-            return "devops";
-        }
+        // 使用 Set 进行快速查找
+        Set<String> frontendSkills = new HashSet<>(Arrays.asList(
+            "vue", "react", "angular", "javascript", "typescript", "html", "css",
+            "jquery", "bootstrap", "ajax", "es6", "sass", "less", "webpack",
+            "jqueryui", "tailwindcss", "materialui", "elementui", "antd", "nuxt", "nextjs"
+        ));
+        Set<String> backendSkills = new HashSet<>(Arrays.asList(
+            "java", "c#", "python", "springboot", "springcloud", "nodejs",
+            "asp.net", "django", "flask", "api", "webapi", "restful",
+            "graphql", "grpc", "websocket", "jwt", "oauth", "lambda", "linq",
+            "rabbitmq", "kafka", "mvc", "ef", "swagger", "openapi"
+        ));
+        Set<String> databaseSkills = new HashSet<>(Arrays.asList(
+            "mysql", "sqlserver", "postgresql", "mongodb", "redis", "oracle",
+            "elasticsearch", "sql", "memcache", "sqlite", "mariadb", "kafka", "rabbitmq"
+        ));
+        Set<String> devopsSkills = new HashSet<>(Arrays.asList(
+            "git", "docker", "kubernetes", "linux", "jenkins", "nginx",
+            "ci/cd", "tomcat", "aws", "aliyun", "azure", "gcp",
+            "github", "gitlab", "svn", "helm", "github-actions", "gitlab-ci",
+            "maven", "gradle"
+        ));
+
+        if (frontendSkills.contains(skill)) return "frontend";
+        if (backendSkills.contains(skill)) return "backend";
+        if (databaseSkills.contains(skill)) return "database";
+        if (devopsSkills.contains(skill)) return "devops";
         return "tools";
     }
 
@@ -653,7 +739,7 @@ public class ResumeAnalysisService {
 
         // 生成建议
         List<String> suggestions = generateSuggestions(resumeText, resumeSkills,
-                match.matched, match.missing, match.score);
+                match.matched, match.missing, match.score, categoryScores);
 
         // 生成优化提示
         List<AnalysisResponse.OptimizationTip> optimizationTips = generateOptimizationTips(

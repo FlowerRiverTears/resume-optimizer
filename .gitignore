@@ -31,3 +31,12 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Test files
+test-api.json
+test-optimize.json

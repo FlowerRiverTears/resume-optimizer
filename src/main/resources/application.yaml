@@ -22,4 +22,4 @@ spring:
       write-enums-using-to-string: true
 
 server:
-  port: 9001
+  port: 9000
