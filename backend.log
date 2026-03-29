@@ -8,86 +8,14 @@
 
  :: Spring Boot ::                (v4.0.5)
 
-2026-03-28T23:38:26.152+08:00  INFO 17024 --- [resume-optimizer] [           main] c.f.r.ResumeOptimizerApplication         : Starting ResumeOptimizerApplication v0.0.1-SNAPSHOT using Java 17.0.17 with PID 17024 (D:\zm\myFile\resume-optimizer\target\resume-optimizer-0.0.1-SNAPSHOT.jar started by y in D:\zm\myFile\resume-optimizer)
-2026-03-28T23:38:26.158+08:00  INFO 17024 --- [resume-optimizer] [           main] c.f.r.ResumeOptimizerApplication         : No active profile set, falling back to 1 default profile: "default"
-2026-03-28T23:38:27.892+08:00  INFO 17024 --- [resume-optimizer] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 9000 (http)
-2026-03-28T23:38:27.925+08:00  INFO 17024 --- [resume-optimizer] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
-2026-03-28T23:38:27.926+08:00  INFO 17024 --- [resume-optimizer] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.20]
-2026-03-28T23:38:28.020+08:00  INFO 17024 --- [resume-optimizer] [           main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1767 ms
-2026-03-28T23:38:29.141+08:00  INFO 17024 --- [resume-optimizer] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 9000 (http) with context path '/'
-2026-03-28T23:38:29.172+08:00  INFO 17024 --- [resume-optimizer] [           main] c.f.r.ResumeOptimizerApplication         : Started ResumeOptimizerApplication in 3.866 seconds (process running for 4.861)
-2026-03-28T23:38:29.569+08:00  INFO 17024 --- [resume-optimizer] [nio-9000-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
-2026-03-28T23:38:29.570+08:00  INFO 17024 --- [resume-optimizer] [nio-9000-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
-2026-03-28T23:38:29.573+08:00  INFO 17024 --- [resume-optimizer] [nio-9000-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 2 ms
-2026-03-28T23:38:29.833+08:00  INFO 17024 --- [resume-optimizer] [nio-9000-exec-1] c.f.r.service.ResumeAnalysisService      : ========== 收到分析请求 ==========
-2026-03-28T23:38:29.834+08:00  INFO 17024 --- [resume-optimizer] [nio-9000-exec-1] c.f.r.service.ResumeAnalysisService      : 简历: 姓名：张三
-电话：13800138000
-邮箱：test@example.com
-求职意向：全栈开发工程师 / Java/.NET 开发工程师
-技能清单：
-后端：Spring Boot、MyBatis-Plus、ASP.NET Core、Entity Framework Core
-前端：HTML5、CSS3、JavaScript、jQuery、Vue.js
-数据库：MySQL、SQL Server
-工具：Git、Maven、npm
-项目经历：
-1. 商品进销存管理系统
-技术栈：ASP.NET Core + Vue.js + SQL Server
-后端采用 Entity Framework Core，JWT认证
-前端基于 Vue.js 和 Element UI
-2. 个人博客系统
-技术栈：Spring Boot + MyBatis-Plus + Vue.js + MySQL
-2026-03-28T23:38:29.835+08:00  INFO 17024 --- [resume-optimizer] [nio-9000-exec-1] c.f.r.service.ResumeAnalysisService      : 职位: 岗位职责：
-负责本公司预算系统、进销存系统的功能研发、优化和维护。
-任职要求：
-计算机相关专业，1年以上.NET开发经验；
-熟练使用：ASP.NET Core、C#
-SQL Server / MySQL
-熟练使用：MVC、WebApi、Swagger
-泛型、Linq、Entity Framework、Lambda、async/await
-熟练使用：JQuery、Bootstrap 等 JS 类库
-至少一种 JS/CSS 框架（React、Vue、Angular 等）
-2026-03-28T23:38:29.852+08:00  INFO 17024 --- [resume-optimizer] [nio-9000-exec-1] c.f.r.service.ResumeAnalysisService      : ========== 分析结果 ==========
-2026-03-28T23:38:29.852+08:00  INFO 17024 --- [resume-optimizer] [nio-9000-exec-1] c.f.r.service.ResumeAnalysisService      : 简历技能: [c#, ef, css, test, maven, vue, elementui, mybatis, springboot, javascript, jquery, sql, spring, java, git, sqlserver, html, mysql]
-2026-03-28T23:38:29.852+08:00  INFO 17024 --- [resume-optimizer] [nio-9000-exec-1] c.f.r.service.ResumeAnalysisService      : 职位技能: [c#, ef, css, vue, react, webapi, bootstrap, swagger, jquery, sql, angular, sqlserver, mysql, mvc]
-2026-03-28T23:38:29.852+08:00  INFO 17024 --- [resume-optimizer] [nio-9000-exec-1] c.f.r.service.ResumeAnalysisService      : 匹配技能: [c#, ef, css, vue, jquery, sql, sqlserver, mysql]
-2026-03-28T23:38:29.853+08:00  INFO 17024 --- [resume-optimizer] [nio-9000-exec-1] c.f.r.service.ResumeAnalysisService      : 缺失技能: [bootstrap, swagger]
-2026-03-28T23:38:29.853+08:00  INFO 17024 --- [resume-optimizer] [nio-9000-exec-1] c.f.r.service.ResumeAnalysisService      : 匹配度: 57%
-2026-03-28T23:38:29.853+08:00  INFO 17024 --- [resume-optimizer] [nio-9000-exec-1] c.f.r.service.ResumeAnalysisService      : ATS评分: 75
-2026-03-28T23:38:29.853+08:00  INFO 17024 --- [resume-optimizer] [nio-9000-exec-1] c.f.r.service.ResumeAnalysisService      : 建议: [建议添加教育背景信息, 简历内容较少，建议补充更多项目细节]
-2026-03-28T23:38:29.853+08:00  INFO 17024 --- [resume-optimizer] [nio-9000-exec-1] c.f.r.service.ResumeAnalysisService      : ============================
-2026-03-28T23:39:00.276+08:00  INFO 17024 --- [resume-optimizer] [nio-9000-exec-2] c.f.r.service.ResumeAnalysisService      : ========== 收到分析请求 ==========
-2026-03-28T23:39:00.276+08:00  INFO 17024 --- [resume-optimizer] [nio-9000-exec-2] c.f.r.service.ResumeAnalysisService      : 简历: 姓名：张三
-电话：13800138000
-邮箱：test@example.com
-求职意向：全栈开发工程师 / Java/.NET 开发工程师
-技能清单：
-后端：Spring Boot、MyBatis-Plus、ASP.NET Core、Entity Framework Core
-前端：HTML5、CSS3、JavaScript、jQuery、Vue.js
-数据库：MySQL、SQL Server
-工具：Git、Maven、npm
-项目经历：
-1. 商品进销存管理系统
-技术栈：ASP.NET Core + Vue.js + SQL Server
-后端采用 Entity Framework Core，JWT认证
-前端基于 Vue.js 和 Element UI
-2. 个人博客系统
-技术栈：Spring Boot + MyBatis-Plus + Vue.js + MySQL
-2026-03-28T23:39:00.276+08:00  INFO 17024 --- [resume-optimizer] [nio-9000-exec-2] c.f.r.service.ResumeAnalysisService      : 职位: 岗位职责：
-负责本公司预算系统、进销存系统的功能研发、优化和维护。
-任职要求：
-计算机相关专业，1年以上.NET开发经验；
-熟练使用：ASP.NET Core、C#
-SQL Server / MySQL
-熟练使用：MVC、WebApi、Swagger
-泛型、Linq、Entity Framework、Lambda、async/await
-熟练使用：JQuery、Bootstrap 等 JS 类库
-至少一种 JS/CSS 框架（React、Vue、Angular 等）
-2026-03-28T23:39:00.276+08:00  INFO 17024 --- [resume-optimizer] [nio-9000-exec-2] c.f.r.service.ResumeAnalysisService      : ========== 分析结果 ==========
-2026-03-28T23:39:00.276+08:00  INFO 17024 --- [resume-optimizer] [nio-9000-exec-2] c.f.r.service.ResumeAnalysisService      : 简历技能: [c#, ef, css, test, maven, vue, elementui, mybatis, springboot, javascript, jquery, sql, spring, java, git, sqlserver, html, mysql]
-2026-03-28T23:39:00.276+08:00  INFO 17024 --- [resume-optimizer] [nio-9000-exec-2] c.f.r.service.ResumeAnalysisService      : 职位技能: [c#, ef, css, vue, react, webapi, bootstrap, swagger, jquery, sql, angular, sqlserver, mysql, mvc]
-2026-03-28T23:39:00.276+08:00  INFO 17024 --- [resume-optimizer] [nio-9000-exec-2] c.f.r.service.ResumeAnalysisService      : 匹配技能: [c#, ef, css, vue, jquery, sql, sqlserver, mysql]
-2026-03-28T23:39:00.276+08:00  INFO 17024 --- [resume-optimizer] [nio-9000-exec-2] c.f.r.service.ResumeAnalysisService      : 缺失技能: [bootstrap, swagger]
-2026-03-28T23:39:00.276+08:00  INFO 17024 --- [resume-optimizer] [nio-9000-exec-2] c.f.r.service.ResumeAnalysisService      : 匹配度: 57%
-2026-03-28T23:39:00.276+08:00  INFO 17024 --- [resume-optimizer] [nio-9000-exec-2] c.f.r.service.ResumeAnalysisService      : ATS评分: 75
-2026-03-28T23:39:00.276+08:00  INFO 17024 --- [resume-optimizer] [nio-9000-exec-2] c.f.r.service.ResumeAnalysisService      : 建议: [建议添加教育背景信息, 简历内容较少，建议补充更多项目细节]
-2026-03-28T23:39:00.276+08:00  INFO 17024 --- [resume-optimizer] [nio-9000-exec-2] c.f.r.service.ResumeAnalysisService      : ============================
+2026-03-28T23:49:36.079+08:00  INFO 22736 --- [resume-optimizer] [           main] c.f.r.ResumeOptimizerApplication         : Starting ResumeOptimizerApplication v0.0.1-SNAPSHOT using Java 17.0.17 with PID 22736 (D:\zm\myFile\resume-optimizer\target\resume-optimizer-0.0.1-SNAPSHOT.jar started by y in D:\zm\myFile\resume-optimizer)
+2026-03-28T23:49:36.084+08:00  INFO 22736 --- [resume-optimizer] [           main] c.f.r.ResumeOptimizerApplication         : No active profile set, falling back to 1 default profile: "default"
+2026-03-28T23:49:37.604+08:00  INFO 22736 --- [resume-optimizer] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 9001 (http)
+2026-03-28T23:49:37.622+08:00  INFO 22736 --- [resume-optimizer] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-03-28T23:49:37.622+08:00  INFO 22736 --- [resume-optimizer] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.20]
+2026-03-28T23:49:37.657+08:00  INFO 22736 --- [resume-optimizer] [           main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 1469 ms
+2026-03-28T23:49:38.482+08:00  INFO 22736 --- [resume-optimizer] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 9001 (http) with context path '/'
+2026-03-28T23:49:38.535+08:00  INFO 22736 --- [resume-optimizer] [           main] c.f.r.ResumeOptimizerApplication         : Started ResumeOptimizerApplication in 3.203 seconds (process running for 4.065)
+2026-03-28T23:49:39.689+08:00  INFO 22736 --- [resume-optimizer] [nio-9001-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-03-28T23:49:39.689+08:00  INFO 22736 --- [resume-optimizer] [nio-9001-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-03-28T23:49:39.692+08:00  INFO 22736 --- [resume-optimizer] [nio-9001-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms

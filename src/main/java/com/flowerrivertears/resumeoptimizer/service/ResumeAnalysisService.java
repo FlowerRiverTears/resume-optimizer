@@ -2,6 +2,7 @@ package com.flowerrivertears.resumeoptimizer.service;
 
 import com.flowerrivertears.resumeoptimizer.model.AnalysisRequest;
 import com.flowerrivertears.resumeoptimizer.model.AnalysisResponse;
+import com.flowerrivertears.resumeoptimizer.model.SkillGap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -198,6 +199,8 @@ public class ResumeAnalysisService {
         Set<String> skills = new HashSet<>();
         if (text == null || text.isEmpty()) return skills;
 
+        String lower = text.toLowerCase();
+
         // 1. 先提取多词技术栈（按固定顺序匹配，避免短词优先匹配）
         String[][] multiWordSkills = {
             // .NET
@@ -219,7 +222,6 @@ public class ResumeAnalysisService {
             {"sql server", "sqlserver"},
         };
 
-        String lower = text.toLowerCase();
         for (String[] skill : multiWordSkills) {
             String keyword = skill[0];
             if (lower.contains(keyword)) {
@@ -268,29 +270,28 @@ public class ResumeAnalysisService {
 
     // ==================== 计算匹配度 ====================
     /**
-     * 计算匹配度 - 简化版
-     * 逻辑：
-     * 1. 简历技能和职位要求技能的交集 = 匹配技能
-     * 2. 职位要求技能 - 交集 = 缺失技能
-     * 3. 匹配度 = 匹配技能数 / 职位要求技能数 × 100
+     * 匹配度计算逻辑：
+     * 1. matched = 简历技能 ∩ 职位技能（简历实际拥有的技能）
+     * 2. missing = 职位技能 - 简历技能（简历没有的技能）
+     * 3. 对于 OR 类别（如 Vue/React/Angular），如果简历有其中任何一个：
+     *    - matched 添加简历拥有的类别技能
+     *    - missing 只移除简历拥有的技能，不移除整个类别
+     * 4. 匹配度 = matched数 / 职位技能数 × 100
      */
     private MatchResult calculateMatch(Set<String> resumeSkills, Set<String> jobSkills) {
         Set<String> matched = new HashSet<>();
         Set<String> missing = new HashSet<>();
 
-        // 1. 计算交集（匹配技能）
+        // 1. 计算交集（匹配技能）- 简历实际拥有的技能
         matched.addAll(resumeSkills);
         matched.retainAll(jobSkills);
 
-        // 2. 计算差集（缺失技能）
+        // 2. 计算差集（缺失技能）- 职位要求但简历没有的技能
         missing.addAll(jobSkills);
         missing.removeAll(resumeSkills);
 
         // 3. 按类别处理 OR 关系
-        int totalRequirements = jobSkills.size();
-        int matchedRequirements = matched.size();
-
-        // 对于 OR 类别（如 Vue/React/Angular），如果简历有一个，就算匹配
+        // 只影响匹配度计算，不改变 matched/missing 的基本定义
         for (Map.Entry<String, Set<String>> entry : SKILL_CATEGORIES.entrySet()) {
             Set<String> categorySkills = entry.getValue();
 
@@ -304,24 +305,19 @@ public class ResumeAnalysisService {
             Set<String> resumeInCategory = new HashSet<>(resumeSkills);
             resumeInCategory.retainAll(categorySkills);
 
-            // 如果简历有这个类别的技能，就算满足
+            // 如果简历有这个类别的技能（OR关系满足）
             if (!resumeInCategory.isEmpty()) {
-                // 添加匹配的（之前可能被误删的）
-                for (String skill : resumeInCategory) {
-                    if (!matched.contains(skill)) {
-                        matched.add(skill);
-                    }
-                }
-                // 从缺失中移除这个类别的其他技能
-                missing.removeAll(requiredInCategory);
+                // matched 添加简历拥有的类别技能（用于计算匹配度）
+                matched.addAll(resumeInCategory);
+                // missing 只移除简历实际拥有的技能（不是整个类别）
+                missing.removeAll(resumeInCategory);
             }
         }
 
-        // 4. 重新计算
-        matchedRequirements = matched.size();
-        totalRequirements = jobSkills.size();
+        // 4. 计算匹配分数
+        int matchedRequirements = matched.size();
+        int totalRequirements = jobSkills.size();
 
-        // 5. 计算匹配分数
         int score;
         if (jobSkills.isEmpty()) {
             score = 0;
@@ -371,25 +367,58 @@ public class ResumeAnalysisService {
 
         // 长度建议
         int words = text.split("\\s+").length;
-        if (words < 150) {
-            suggestions.add("简历内容较少，建议补充更多项目细节");
-        } else if (words > 1000) {
+        if (words < 300) {
+            suggestions.add("简历内容较少，建议补充更多项目细节（建议300字以上）");
+        } else if (words > 1500) {
             suggestions.add("简历内容较长，建议精简到1-2页");
         }
 
-        // 技能建议
+        // 缺失技能建议 - 根据实际缺失的技能生成针对性建议
         if (!missing.isEmpty()) {
-            // 核心技能缺失
-            if (missing.contains("c#") || missing.contains("asp.net")) {
-                suggestions.add("【重要】建议补充 ASP.NET Core / C# 相关经验");
+            StringBuilder skillSuggestion = new StringBuilder("建议补充: ");
+            List<String> missingList = new ArrayList<>(missing);
+
+            // 按类别组织缺失技能
+            Set<String> missingBackend = new HashSet<>(Arrays.asList(
+                "c#", "java", "springboot", "springcloud", "nodejs", "python",
+                "webapi", "restful", "api", "graphql", "jwt"
+            ));
+            Set<String> missingFrontend = new HashSet<>(Arrays.asList(
+                "vue", "react", "angular", "javascript", "typescript"
+            ));
+            Set<String> missingDb = new HashSet<>(Arrays.asList(
+                "mysql", "sqlserver", "postgresql", "mongodb", "redis", "oracle"
+            ));
+            Set<String> missingDevOps = new HashSet<>(Arrays.asList(
+                "git", "docker", "kubernetes", "linux", "nginx", "jenkins", "ci/cd"
+            ));
+
+            Set<String> currentMissing = new HashSet<>(missing);
+
+            // 检查各类别
+            currentMissing.retainAll(missingBackend);
+            if (!currentMissing.isEmpty()) {
+                skillSuggestion.append("后端技能(").append(String.join(", ", currentMissing)).append(") ");
             }
-            // 前端框架缺失
-            if (missing.contains("vue") || missing.contains("react") || missing.contains("angular")) {
-                suggestions.add("建议补充前端框架（Vue/React/Angular）经验");
+            currentMissing = new HashSet<>(missing);
+            currentMissing.retainAll(missingFrontend);
+            if (!currentMissing.isEmpty()) {
+                skillSuggestion.append("前端技能(").append(String.join(", ", currentMissing)).append(") ");
             }
-            // 数据库缺失
-            if (missing.contains("mysql") || missing.contains("sqlserver")) {
-                suggestions.add("建议补充数据库（MySQL/SQL Server）使用经验");
+            currentMissing = new HashSet<>(missing);
+            currentMissing.retainAll(missingDb);
+            if (!currentMissing.isEmpty()) {
+                skillSuggestion.append("数据库(").append(String.join(", ", currentMissing)).append(") ");
+            }
+            currentMissing = new HashSet<>(missing);
+            currentMissing.retainAll(missingDevOps);
+            if (!currentMissing.isEmpty()) {
+                skillSuggestion.append("DevOps(").append(String.join(", ", currentMissing)).append(") ");
+            }
+
+            String suggestion = skillSuggestion.toString().trim();
+            if (!suggestion.equals("建议补充:")) {
+                suggestions.add(suggestion);
             }
         }
 
@@ -427,8 +456,8 @@ public class ResumeAnalysisService {
 
         // 长度 (20分)
         int words = text.split("\\s+").length;
-        if (words >= 200 && words <= 800) score += 20;
-        else if (words >= 100) score += 10;
+        if (words >= 300 && words <= 1500) score += 20;
+        else if (words >= 150) score += 10;
 
         // 格式 (10分)
         if (!text.contains("!!!") && !text.contains("???")) score += 10;
@@ -447,25 +476,188 @@ public class ResumeAnalysisService {
                 .build();
     }
 
+    // ==================== 分类评分计算（用于雷达图）====================
+    /**
+     * 计算各技能分类的匹配度
+     */
+    private Map<String, AnalysisResponse.CategoryScore> calculateCategoryScores(
+            Set<String> resumeSkills, Set<String> jobSkills) {
+        Map<String, AnalysisResponse.CategoryScore> categoryScores = new LinkedHashMap<>();
+
+        // 定义技能分类（用于雷达图展示）
+        Map<String, Set<String>> chartCategories = new LinkedHashMap<>();
+        chartCategories.put("frontend", new HashSet<>(Arrays.asList(
+            "vue", "react", "angular", "javascript", "typescript", "html", "css",
+            "jquery", "bootstrap", "ajax", "es6"
+        )));
+        chartCategories.put("backend", new HashSet<>(Arrays.asList(
+            "java", "c#", "python", "springboot", "springcloud", "nodejs",
+            "asp.net", "django", "flask", "api", "webapi", "restful"
+        )));
+        chartCategories.put("database", new HashSet<>(Arrays.asList(
+            "mysql", "sqlserver", "postgresql", "mongodb", "redis", "oracle",
+            "elasticsearch", "sql"
+        )));
+        chartCategories.put("devops", new HashSet<>(Arrays.asList(
+            "git", "docker", "kubernetes", "linux", "jenkins", "nginx",
+            "ci/cd", "tomcat", "aws", "aliyun"
+        )));
+
+        for (Map.Entry<String, Set<String>> entry : chartCategories.entrySet()) {
+            String categoryName = entry.getKey();
+            Set<String> categorySkills = entry.getValue();
+
+            // 职位要求中属于该分类的技能
+            Set<String> requiredInCategory = new HashSet<>(jobSkills);
+            requiredInCategory.retainAll(categorySkills);
+
+            // 简历中属于该分类的技能
+            Set<String> matchedInCategory = new HashSet<>(resumeSkills);
+            matchedInCategory.retainAll(categorySkills);
+
+            int totalCount = requiredInCategory.size();
+            int matchedCount = matchedInCategory.size();
+            int score = totalCount > 0 ? (int) Math.round(100.0 * matchedCount / totalCount) : 0;
+
+            categoryScores.put(categoryName, AnalysisResponse.CategoryScore.builder()
+                    .category(categoryName)
+                    .matchedCount(matchedCount)
+                    .totalCount(totalCount)
+                    .score(score)
+                    .build());
+        }
+
+        return categoryScores;
+    }
+
+    // ==================== 技能差距分析 ====================
+    /**
+     * 生成技能差距详情列表
+     */
+    private List<SkillGap> analyzeSkillGaps(Set<String> resumeSkills, Set<String> jobSkills) {
+        List<SkillGap> skillGaps = new LinkedList<>();
+
+        // 计算缺失技能
+        Set<String> missingSkills = new HashSet<>(jobSkills);
+        missingSkills.removeAll(resumeSkills);
+
+        // 技能重要性映射
+        Map<String, Integer> importanceMap = new HashMap<>();
+        // 高重要性技能
+        Arrays.asList("vue", "react", "angular", "java", "c#", "python",
+            "springboot", "mysql", "postgresql", "docker", "git",
+            "restful", "api", "kubernetes").forEach(s -> importanceMap.put(s, 5));
+        // 中等重要性
+        Arrays.asList("javascript", "typescript", "html", "css", "redis",
+            "mongodb", "linux", "nodejs", "springcloud", "aws").forEach(s -> importanceMap.put(s, 4));
+        // 一般重要性
+        Arrays.asList("jquery", "bootstrap", "webpack", "gradle", "maven",
+            "nginx", "jenkins", "ci/cd", "github", "gitlab").forEach(s -> importanceMap.put(s, 3));
+
+        // 学习建议模板
+        Map<String, String> suggestionMap = new HashMap<>();
+        suggestionMap.put("vue", "建议学习 Vue3 组合式 API 和 Pinia 状态管理");
+        suggestionMap.put("react", "建议学习 React Hooks 和 Redux 状态管理");
+        suggestionMap.put("angular", "建议学习 Angular 组件化和 RxJS");
+        suggestionMap.put("java", "建议深入学习 Spring Boot 和微服务架构");
+        suggestionMap.put("c#", "建议深入学习 .NET Core 和 Entity Framework");
+        suggestionMap.put("python", "建议学习 Django/Flask 框架");
+        suggestionMap.put("mysql", "建议学习 MySQL 优化和索引原理");
+        suggestionMap.put("postgresql", "建议学习 PostgreSQL 高级特性和性能优化");
+        suggestionMap.put("mongodb", "建议学习 MongoDB 聚合管道和数据建模");
+        suggestionMap.put("redis", "建议学习 Redis 持久化和分布式缓存");
+        suggestionMap.put("docker", "建议学习 Docker Compose 和容器编排");
+        suggestionMap.put("kubernetes", "建议学习 K8s 部署和 Helm Charts");
+        suggestionMap.put("git", "建议掌握 Git 高级操作和分支管理策略");
+        suggestionMap.put("restful", "建议学习 RESTful API 设计规范");
+        suggestionMap.put("api", "建议学习 API 设计和 Swagger 文档编写");
+        suggestionMap.put("springboot", "建议学习 Spring Boot 自动配置原理");
+        suggestionMap.put("springcloud", "建议学习 Spring Cloud 微服务组件");
+        suggestionMap.put("kubernetes", "建议学习 K8s 部署和 Helm Charts");
+        suggestionMap.put("aws", "建议学习 AWS 云服务架构设计");
+        suggestionMap.put("linux", "建议学习 Linux 系统管理和 Shell 脚本");
+        suggestionMap.put("javascript", "建议学习 ES6+ 新特性和异步编程");
+        suggestionMap.put("typescript", "建议学习 TypeScript 类型系统和装饰器");
+
+        for (String skill : missingSkills) {
+            String category = getSkillCategory(skill);
+            int importance = importanceMap.getOrDefault(skill, 3);
+            String suggestion = suggestionMap.getOrDefault(skill,
+                "建议系统学习 " + skill + " 相关技术栈");
+
+            SkillGap gap = SkillGap.builder()
+                    .skill(skill)
+                    .category(category)
+                    .importance(importance)
+                    .reason("简历中未体现该技能")
+                    .suggestion(suggestion)
+                    .build();
+
+            skillGaps.add(gap);
+        }
+
+        // 按重要性排序
+        skillGaps.sort((a, b) -> b.getImportance() - a.getImportance());
+
+        return skillGaps;
+    }
+
+    /**
+     * 获取技能所属分类
+     */
+    private String getSkillCategory(String skill) {
+        if (Arrays.asList("vue", "react", "angular", "javascript", "typescript",
+            "html", "css", "jquery", "bootstrap", "ajax", "es6", "jqueryui",
+            "tailwindcss", "materialui", "elementui", "antd", "nuxt", "nextjs").contains(skill)) {
+            return "frontend";
+        }
+        if (Arrays.asList("java", "c#", "python", "springboot", "springcloud",
+            "nodejs", "asp.net", "django", "flask", "api", "webapi", "restful",
+            "graphql", "grpc", "websocket", "jwt", "oauth", "lambda", "linq").contains(skill)) {
+            return "backend";
+        }
+        if (Arrays.asList("mysql", "sqlserver", "postgresql", "mongodb", "redis",
+            "oracle", "elasticsearch", "sql", "memcache", "sqlite", "mariadb").contains(skill)) {
+            return "database";
+        }
+        if (Arrays.asList("git", "docker", "kubernetes", "linux", "jenkins",
+            "nginx", "ci/cd", "tomcat", "aws", "aliyun", "azure", "github",
+            "gitlab", "svn", "helm", "github-actions", "gitlab-ci").contains(skill)) {
+            return "devops";
+        }
+        return "tools";
+    }
+
     // ==================== 主方法 ====================
     public AnalysisResponse analyze(AnalysisRequest request) {
         String resumeText = request.getResumeText();
         String jobDesc = request.getJobDescription();
 
-        log.info("========== 收到分析请求 ==========");
-        log.info("简历: {}", resumeText);
-        log.info("职位: {}", jobDesc);
-
         // 提取技能
         Set<String> resumeSkills = extractSkills(resumeText);
         Set<String> jobSkills = extractSkills(jobDesc);
 
+        log.info("========== 简历分析 ==========");
+        log.info("简历技能 ({}): {}", resumeSkills.size(), resumeSkills);
+        log.info("职位技能 ({}): {}", jobSkills.size(), jobSkills);
+
         // 计算匹配
         MatchResult match = calculateMatch(resumeSkills, jobSkills);
+
+        // 计算分类评分（用于雷达图）
+        Map<String, AnalysisResponse.CategoryScore> categoryScores =
+            calculateCategoryScores(resumeSkills, jobSkills);
+
+        // 分析技能差距
+        List<SkillGap> skillGaps = analyzeSkillGaps(resumeSkills, jobSkills);
 
         // 生成建议
         List<String> suggestions = generateSuggestions(resumeText, resumeSkills,
                 match.matched, match.missing, match.score);
+
+        // 生成优化提示
+        List<AnalysisResponse.OptimizationTip> optimizationTips = generateOptimizationTips(
+                resumeText, jobSkills, skillGaps);
 
         // ATS评分
         int atsScore = calculateAtsScore(resumeText, resumeSkills);
@@ -473,26 +665,101 @@ public class ResumeAnalysisService {
         // 结构分析
         AnalysisResponse.StructureInfo structure = analyzeStructure(resumeText);
 
+        // 关键词词频分析
+        Map<String, Integer> keywordFrequency = analyzeKeywordFrequency(resumeText, jobSkills);
+
         AnalysisResponse response = AnalysisResponse.builder()
                 .atsScore(atsScore)
                 .matchScore(match.score)
                 .foundKeywords(new ArrayList<>(match.matched))
                 .missingKeywords(new ArrayList<>(match.missing))
                 .suggestions(suggestions)
-                .keywordFrequency(new HashMap<>())
+                .keywordFrequency(keywordFrequency)
                 .structure(structure)
+                .categoryScores(categoryScores)
+                .skillGaps(skillGaps)
+                .optimizationTips(optimizationTips)
                 .build();
 
         log.info("========== 分析结果 ==========");
-        log.info("简历技能: {}", resumeSkills);
-        log.info("职位技能: {}", jobSkills);
-        log.info("匹配技能: {}", match.matched);
-        log.info("缺失技能: {}", match.missing);
-        log.info("匹配度: {}%", match.score);
-        log.info("ATS评分: {}", atsScore);
+        log.info("匹配技能 ({}): {}", match.matched.size(), match.matched);
+        log.info("缺失技能 ({}): {}", match.missing.size(), match.missing);
+        log.info("匹配度: {}% ({}/{})", match.score, match.matched.size(), jobSkills.size());
+        log.info("分类评分: {}", categoryScores);
         log.info("建议: {}", suggestions);
-        log.info("============================");
 
         return response;
+    }
+
+    // ==================== 关键词词频分析 ====================
+    private Map<String, Integer> analyzeKeywordFrequency(String resumeText, Set<String> jobSkills) {
+        Map<String, Integer> frequency = new HashMap<>();
+        String lower = resumeText.toLowerCase();
+
+        for (String skill : jobSkills) {
+            // 计算技能在简历中出现的次数
+            String pattern = "\\b" + skill.replace("+", "\\+") + "\\b";
+            int count = 0;
+            try {
+                Pattern p = Pattern.compile(pattern, Pattern.CASE_INSENSITIVE);
+                Matcher m = p.matcher(lower);
+                while (m.find()) count++;
+            } catch (Exception e) {
+                // 忽略正则错误
+            }
+            if (count > 0) {
+                frequency.put(skill, count);
+            }
+        }
+
+        return frequency;
+    }
+
+    // ==================== 生成优化提示 ====================
+    private List<AnalysisResponse.OptimizationTip> generateOptimizationTips(
+            String resumeText, Set<String> jobSkills, List<SkillGap> skillGaps) {
+        List<AnalysisResponse.OptimizationTip> tips = new ArrayList<>();
+
+        // 结构优化提示
+        if (!containsKeyword(resumeText, SUMMARY_KW)) {
+            tips.add(AnalysisResponse.OptimizationTip.builder()
+                    .type("add")
+                    .originalText("")
+                    .suggestedText("【个人简介】一段 2-3 行的个人简介，突出您的核心优势和职业目标")
+                    .reason("简历缺少个人简介部分，这会影响招聘方的第一印象")
+                    .build());
+        }
+
+        if (!containsKeyword(resumeText, EXP_KW)) {
+            tips.add(AnalysisResponse.OptimizationTip.builder()
+                    .type("add")
+                    .originalText("")
+                    .suggestedText("【工作经历】详细描述每段工作的职责和成就，使用量化数据")
+                    .reason("简历缺少工作经历部分，这是招聘方最关注的内容")
+                    .build());
+        }
+
+        // 技能差距优化提示
+        for (SkillGap gap : skillGaps.stream().limit(3).toList()) {
+            tips.add(AnalysisResponse.OptimizationTip.builder()
+                    .type("add")
+                    .originalText("")
+                    .suggestedText("【建议添加】" + gap.getSkill() + " 相关技能描述")
+                    .reason(gap.getSuggestion())
+                    .build());
+        }
+
+        // 长度优化
+        int words = resumeText.split("\\s+").length;
+        if (words < 300) {
+            tips.add(AnalysisResponse.OptimizationTip.builder()
+                    .type("improve")
+                    .originalText("简历内容偏少")
+                    .suggestedText("建议补充更多项目细节和成果描述，每段经历建议 3-5 个要点")
+                    .reason("简历内容较少，建议丰富至 300-500 字")
+                    .build());
+        }
+
+        return tips;
     }
 }
