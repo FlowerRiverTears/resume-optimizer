@@ -14,8 +14,6 @@ spring:
     filter:
       hide-parameters: true
 
-
-
   jackson:
     default-property-inclusion: always
     generator:
@@ -23,3 +21,49 @@ spring:
 
 server:
   port: 9000
+
+ai:
+  llm:
+    provider: openai
+    openai:
+      api-key: ${OPENAI_API_KEY:sk-your-api-key}
+      base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+      model-name: ${OPENAI_MODEL:gpt-4o-mini}
+      temperature: 0.7
+      max-tokens: 2048
+      timeout: 60
+    dashscope:
+      api-key: ${DASHSCOPE_API_KEY:sk-your-dashscope-key}
+      model-name: ${DASHSCOPE_MODEL:qwen-plus}
+      base-url: ${DASHSCOPE_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
+    deepseek:
+      api-key: ${DEEPSEEK_API_KEY:sk-your-deepseek-key}
+      model-name: ${DEEPSEEK_MODEL:deepseek-chat}
+      base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
+    minimax:
+      api-key: ${MINIMAX_API_KEY:sk-your-minimax-key}
+      model-name: ${MINIMAX_MODEL:MiniMax-M2.7}
+      base-url: ${MINIMAX_BASE_URL:https://api.minimaxi.com/v1}
+
+  rag:
+    embedding:
+      provider: local
+      openai:
+        api-key: ${OPENAI_API_KEY:sk-your-api-key}
+        base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+        model-name: text-embedding-3-small
+    vector-store:
+      type: in-memory
+      max-results: 5
+      min-score: 0.5
+    document:
+      chunk-size: 500
+      chunk-overlap: 50
+
+  weight:
+    enabled: true
+    dimensions:
+      skill-match: 0.35
+      semantic-similarity: 0.30
+      category-relevance: 0.20
+      experience-level: 0.15
