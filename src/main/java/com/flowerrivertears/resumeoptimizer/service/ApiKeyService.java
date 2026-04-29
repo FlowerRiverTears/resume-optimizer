@@ -45,7 +45,7 @@ public class ApiKeyService {
         log.info("Validating API key: provider={}, model={}, baseUrl={}", provider, modelName, baseUrl);
 
         try {
-            ChatModel testModel = createChatModel(request.getApiKey(), baseUrl, modelName);
+            ChatModel testModel = createValidationModel(request.getApiKey(), baseUrl, modelName);
 
             String testResponse = testModel.chat("Hi, reply with just 'OK'.");
 
@@ -163,7 +163,18 @@ public class ApiKeyService {
                 .baseUrl(baseUrl)
                 .modelName(modelName)
                 .temperature(0.7)
-                .maxTokens(256)
+                .maxTokens(4096)
+                .timeout(Duration.ofSeconds(120))
+                .build();
+    }
+
+    private ChatModel createValidationModel(String apiKey, String baseUrl, String modelName) {
+        return OpenAiChatModel.builder()
+                .apiKey(apiKey)
+                .baseUrl(baseUrl)
+                .modelName(modelName)
+                .temperature(0.7)
+                .maxTokens(64)
                 .timeout(Duration.ofSeconds(30))
                 .build();
     }

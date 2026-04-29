@@ -20,12 +20,18 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
 public class AiAgentService {
 
     private static final Logger log = LoggerFactory.getLogger(AiAgentService.class);
+
+    private static final Pattern THINKING_PATTERN = Pattern.compile("<think[^>]*>([\\s\\S]*?)</think >", Pattern.CASE_INSENSITIVE);
+    private static final Pattern THINKING_TAG_OPEN = Pattern.compile("<think[^>]*>", Pattern.CASE_INSENSITIVE);
+    private static final Pattern THINKING_TAG_CLOSE = Pattern.compile("</think >", Pattern.CASE_INSENSITIVE);
 
     @Autowired
     private ChatModel chatModel;
@@ -67,25 +73,73 @@ public class AiAgentService {
             2. 提供针对性的简历优化建议
             3. 帮助用户理解技能差距并给出学习路径
             4. 基于检索到的数据，给出精准的求职建议
+            5. 根据用户技能生成专业简历
             
             请用专业、友好的语气回答问题。回答需要基于事实数据，不要编造信息。
             如果检索到的数据不足以回答问题，请如实告知用户。
+            回答要完整详细，不要中途截断。
             """;
 
-    private static final String RESUME_ANALYSIS_PROMPT = """
-            基于以下简历分析数据，请提供专业的解读和建议：
+    private static final String RESUME_GENERATE_PROMPT = """
+            请根据以下信息，生成一份完整的专业简历。要求格式规范、内容充实、语言专业。
             
-            匹配度：{{matchScore}}%
-            ATS评分：{{atsScore}}
-            匹配技能：{{matchedSkills}}
-            缺失技能：{{missingSkills}}
-            技能差距：{{skillGaps}}
+            用户技能和经历：
+            {{userInput}}
             
-            请从以下角度分析：
-            1. 整体匹配度评价
-            2. 关键缺失技能的影响
-            3. 优化建议的优先级
-            4. 短期可提升的方向
+            检索到的相关岗位要求：
+            {{searchResults}}
+            
+            请生成包含以下部分的完整简历：
+            1. 基本信息（姓名、联系方式等占位符）
+            2. 求职意向（根据技能推荐最匹配的岗位）
+            3. 教育背景
+            4. 专业技能（分类列出，标注熟练度）
+            5. 项目经历（每个项目包含：项目名称、技术栈、职责描述、项目成果）
+            6. 自我评价
+            
+            注意：
+            - 根据检索到的岗位要求，突出匹配的技能
+            - 项目描述要具体，包含量化成果
+            - 技能分类要清晰（后端/前端/数据库/工具/其他）
+            """;
+
+    private static final String DEEP_ANALYSIS_PROMPT = """
+            请对以下简历进行深度AI分析，基于检索到的岗位市场数据给出专业建议。
+            
+            简历内容：
+            {{resumeText}}
+            
+            职位描述：
+            {{jobDescription}}
+            
+            知识库检索结果（岗位市场数据）：
+            {{searchResults}}
+            
+            请从以下维度进行深度分析：
+            
+            1. 🎯 岗位匹配分析
+               - 根据知识库数据，该简历最匹配哪些岗位？
+               - 匹配度评估（高/中/低）
+               - 与市场同类岗位要求的差距
+            
+            2. 💪 核心竞争力
+               - 最突出的3个技术优势
+               - 差异化竞争力分析
+            
+            3. 📈 技能提升建议
+               - 短期可提升（1-3个月）：具体学什么、怎么学
+               - 中期提升方向（3-6个月）：进阶路径
+               - 长期发展规划：职业成长建议
+            
+            4. 📝 简历优化建议
+               - 需要补充的关键词
+               - 项目描述的改进方向
+               - 技能呈现的优化方式
+            
+            5. 🔍 市场趋势
+               - 相关岗位的市场需求
+               - 薪资参考范围
+               - 行业发展方向
             """;
 
     private static final String SKILL_SEARCH_PROMPT = """
@@ -95,6 +149,7 @@ public class AiAgentService {
             {{searchResults}}
             
             请基于以上数据，回答用户的问题。如果数据不足，请说明需要补充哪些信息。
+            回答要完整详细。
             """;
 
     public AiChatResponse chat(AiChatRequest request) {
@@ -114,13 +169,17 @@ public class AiAgentService {
 
         String context = buildContext(searchResults, request.getContext());
         String fullPrompt = buildChatPrompt(request.getMessage(), context);
-        String answer = model.chat(fullPrompt);
+        String rawAnswer = model.chat(fullPrompt);
+
+        ParsedResponse parsed = parseThinkingContent(rawAnswer);
 
         long elapsed = System.currentTimeMillis() - startTime;
-        log.info("AI Chat response generated in {}ms", elapsed);
+        log.info("AI Chat response generated in {}ms, thinking={}, answer={}chars",
+                elapsed, parsed.thinking != null ? parsed.thinking.length() : 0, parsed.answer.length());
 
         return AiChatResponse.builder()
-                .answer(answer)
+                .answer(parsed.answer)
+                .thinking(parsed.thinking)
                 .provider(request.getProvider() != null ? request.getProvider() : "default")
                 .model(getModelName(request.getProvider()))
                 .searchResults(searchResults)
@@ -135,35 +194,79 @@ public class AiAgentService {
 
         ragService.ingestResumeData(resumeText, jobDescription);
 
-        AnalysisRequest analysisRequest = new AnalysisRequest();
-        analysisRequest.setResumeText(resumeText);
-        analysisRequest.setJobDescription(jobDescription);
-        AnalysisResponse analysisResponse = resumeAnalysisService.analyze(analysisRequest);
+        List<SearchResult> searchResults = ragService.search(
+                "岗位要求 技能匹配 " + (jobDescription != null ? jobDescription : resumeText), 5, 0.3);
+
+        if (weightedRetrievalService.isEnabled() && !searchResults.isEmpty()) {
+            searchResults = weightedRetrievalService.applyWeights(
+                    searchResults, "岗位匹配分析", null, null);
+        }
+
+        String searchContext = searchResults.stream()
+                .map(r -> "[来源: " + r.getSource() + ", 相关度: " +
+                        String.format("%.2f", r.getWeightedScore()) + "] " + r.getContent())
+                .collect(Collectors.joining("\n\n"));
 
         Map<String, Object> templateVars = new HashMap<>();
-        templateVars.put("matchScore", analysisResponse.getMatchScore());
-        templateVars.put("atsScore", analysisResponse.getAtsScore());
-        templateVars.put("matchedSkills", String.join(", ", analysisResponse.getFoundKeywords()));
-        templateVars.put("missingSkills", String.join(", ", analysisResponse.getMissingKeywords()));
-        templateVars.put("skillGaps", analysisResponse.getSkillGaps().stream()
-                .map(g -> g.getSkill() + "(" + g.getImportance() + "/5)")
-                .collect(Collectors.joining(", ")));
+        templateVars.put("resumeText", resumeText);
+        templateVars.put("jobDescription", jobDescription != null ? jobDescription : "未提供");
+        templateVars.put("searchResults", searchContext.isEmpty() ? "暂无额外检索数据" : searchContext);
 
-        PromptTemplate promptTemplate = PromptTemplate.from(RESUME_ANALYSIS_PROMPT);
+        PromptTemplate promptTemplate = PromptTemplate.from(DEEP_ANALYSIS_PROMPT);
         Prompt prompt = promptTemplate.apply(templateVars);
 
         ChatModel model = resolveModel(provider, keyId, null, null, null);
-        String aiAnalysis = model.chat(prompt.text());
+        String rawAnswer = model.chat(prompt.text());
 
-        List<SearchResult> searchResults = ragService.search(
-                "简历优化 " + String.join(" ", analysisResponse.getMissingKeywords()), 3);
+        ParsedResponse parsed = parseThinkingContent(rawAnswer);
 
         long elapsed = System.currentTimeMillis() - startTime;
 
         return AiChatResponse.builder()
-                .answer(aiAnalysis)
+                .answer(parsed.answer)
+                .thinking(parsed.thinking)
                 .provider(provider != null ? provider : "default")
-                .model("langchain-workflow")
+                .model("rag-deep-analysis")
+                .searchResults(searchResults)
+                .responseTimeMs(elapsed)
+                .build();
+    }
+
+    public AiChatResponse generateResume(String userInput, String provider, String keyId) {
+        long startTime = System.currentTimeMillis();
+        log.info("AI resume generation request: provider={}, keyId={}", provider, keyId);
+
+        List<SearchResult> searchResults = ragService.search(
+                "岗位要求 " + userInput, 5, 0.3);
+
+        if (weightedRetrievalService.isEnabled() && !searchResults.isEmpty()) {
+            searchResults = weightedRetrievalService.applyWeights(
+                    searchResults, userInput, null, null);
+        }
+
+        String searchContext = searchResults.stream()
+                .map(r -> "[来源: " + r.getSource() + "] " + r.getContent())
+                .collect(Collectors.joining("\n"));
+
+        Map<String, Object> templateVars = new HashMap<>();
+        templateVars.put("userInput", userInput);
+        templateVars.put("searchResults", searchContext.isEmpty() ? "暂无额外数据" : searchContext);
+
+        PromptTemplate promptTemplate = PromptTemplate.from(RESUME_GENERATE_PROMPT);
+        Prompt prompt = promptTemplate.apply(templateVars);
+
+        ChatModel model = resolveModel(provider, keyId, null, null, null);
+        String rawAnswer = model.chat(prompt.text());
+
+        ParsedResponse parsed = parseThinkingContent(rawAnswer);
+
+        long elapsed = System.currentTimeMillis() - startTime;
+
+        return AiChatResponse.builder()
+                .answer(parsed.answer)
+                .thinking(parsed.thinking)
+                .provider(provider != null ? provider : "default")
+                .model("resume-generator")
                 .searchResults(searchResults)
                 .responseTimeMs(elapsed)
                 .build();
@@ -194,12 +297,15 @@ public class AiAgentService {
         Prompt prompt = promptTemplate.apply(templateVars);
 
         ChatModel model = resolveModel(provider, keyId, null, null, null);
-        String aiAnswer = model.chat(prompt.text());
+        String rawAnswer = model.chat(prompt.text());
+
+        ParsedResponse parsed = parseThinkingContent(rawAnswer);
 
         long elapsed = System.currentTimeMillis() - startTime;
 
         return AiChatResponse.builder()
-                .answer(aiAnswer)
+                .answer(parsed.answer)
+                .thinking(parsed.thinking)
                 .provider(provider != null ? provider : "default")
                 .model("rag-search")
                 .searchResults(searchResults)
@@ -229,6 +335,49 @@ public class AiAgentService {
                 .retrievalAugmentor(retrievalAugmentor)
                 .chatMemory(chatMemory)
                 .build();
+    }
+
+    private ParsedResponse parseThinkingContent(String rawAnswer) {
+        if (rawAnswer == null) {
+            return new ParsedResponse("", null);
+        }
+
+        String thinking = null;
+        String answer = rawAnswer;
+
+        Matcher matcher = THINKING_PATTERN.matcher(rawAnswer);
+        if (matcher.find()) {
+            thinking = matcher.group(1).trim();
+            answer = THINKING_PATTERN.matcher(rawAnswer).replaceAll("").trim();
+        } else {
+            String partial = rawAnswer;
+            Matcher openMatcher = THINKING_TAG_OPEN.matcher(partial);
+            if (openMatcher.find()) {
+                int thinkStart = openMatcher.start();
+                String afterThink = rawAnswer.substring(thinkStart);
+                Matcher closeMatcher = THINKING_TAG_CLOSE.matcher(afterThink);
+
+                if (closeMatcher.find()) {
+                    int thinkContentStart = openMatcher.end();
+                    int thinkContentEnd = thinkStart + closeMatcher.start();
+                    thinking = rawAnswer.substring(thinkContentStart, thinkContentEnd).trim();
+                    answer = rawAnswer.substring(0, thinkStart).trim();
+                    if (answer.isEmpty()) {
+                        answer = rawAnswer.substring(thinkStart + closeMatcher.end()).trim();
+                    }
+                } else {
+                    thinking = rawAnswer.substring(openMatcher.end()).trim();
+                    answer = rawAnswer.substring(0, thinkStart).trim();
+                }
+            }
+        }
+
+        if (answer.isEmpty() && thinking != null && !thinking.isEmpty()) {
+            answer = thinking;
+            thinking = null;
+        }
+
+        return new ParsedResponse(answer, thinking);
     }
 
     private ChatModel resolveModel(String provider, String keyId,
@@ -291,5 +440,15 @@ public class AiAgentService {
         }
         prompt.append("用户问题：").append(message);
         return prompt.toString();
+    }
+
+    private static class ParsedResponse {
+        String answer;
+        String thinking;
+
+        ParsedResponse(String answer, String thinking) {
+            this.answer = answer;
+            this.thinking = thinking;
+        }
     }
 }

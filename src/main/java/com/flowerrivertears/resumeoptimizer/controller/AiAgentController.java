@@ -33,6 +33,15 @@ public class AiAgentController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/generate-resume")
+    public ResponseEntity<AiChatResponse> generateResume(@RequestBody Map<String, Object> request) {
+        String userInput = (String) request.get("userInput");
+        String provider = (String) request.get("provider");
+        String keyId = (String) request.get("keyId");
+        AiChatResponse response = aiAgentService.generateResume(userInput, provider, keyId);
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping("/analyze")
     public ResponseEntity<AiChatResponse> analyzeWithAi(
             @RequestBody AnalysisRequest request,

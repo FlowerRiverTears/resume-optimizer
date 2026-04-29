@@ -13,6 +13,7 @@ import java.util.List;
 @AllArgsConstructor
 public class AiChatResponse {
     private String answer;
+    private String thinking;
     private String provider;
     private String model;
     private List<SearchResult> searchResults;
