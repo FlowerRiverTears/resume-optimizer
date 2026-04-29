@@ -29,9 +29,9 @@ public class AiAgentService {
 
     private static final Logger log = LoggerFactory.getLogger(AiAgentService.class);
 
-    private static final Pattern THINKING_PATTERN = Pattern.compile("<think[^>]*>([\\s\\S]*?)</think >", Pattern.CASE_INSENSITIVE);
+    private static final Pattern THINKING_PATTERN = Pattern.compile("<think[^>]*>([\\s\\S]*?)</think\\s*>", Pattern.CASE_INSENSITIVE);
     private static final Pattern THINKING_TAG_OPEN = Pattern.compile("<think[^>]*>", Pattern.CASE_INSENSITIVE);
-    private static final Pattern THINKING_TAG_CLOSE = Pattern.compile("</think >", Pattern.CASE_INSENSITIVE);
+    private static final Pattern THINKING_TAG_CLOSE = Pattern.compile("</think\\s*>", Pattern.CASE_INSENSITIVE);
 
     @Autowired
     private ChatModel chatModel;
