@@ -82,7 +82,5 @@ GET /api/templates/{type}
 type: default | tech | senior
 ```
 
-## License
 
-MIT License
 
