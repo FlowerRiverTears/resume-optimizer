@@ -183,10 +183,20 @@ public class AiAgentController {
         response.put("status", "ok");
         response.put("service", "AI Agent Service");
         response.put("knowledgeBaseSize", ragService.getKnowledgeBaseSize());
+        response.put("keywordIndexSize", ragService.getKeywordIndexSize());
         response.put("weightEnabled", weightedRetrievalService.isEnabled());
         response.put("weightDimensions", weightedRetrievalService.getDimensions());
         response.put("storedApiKeys", apiKeyService.listKeys().size());
         response.put("supportedProviders", apiKeyService.getSupportedProviders());
+        response.put("ragFeatures", Map.of(
+                "embeddingModel", "all-MiniLM-L6-v2",
+                "vectorStore", "InMemoryEmbeddingStore",
+                "retrievalMethods", List.of("vector", "keyword", "hybrid"),
+                "reranking", true,
+                "semanticChunking", true,
+                "keywordIndexing", true,
+                "chineseBigram", true
+        ));
         return ResponseEntity.ok(response);
     }
 }
