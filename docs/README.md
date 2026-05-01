@@ -1,4 +1,11 @@
-# 简历优化器 (Resume Optimizer)
+# 简历优化器 - 项目文档
+
+**[English](./README.en.md)** | **中文**
+
+---
+
+> 本文档为项目完整文档，包含项目背景、技术栈、核心功能、快速开始、配置说明和完整 API 接口。
+> 简要版请参见 [根目录 README.md](../README.md)
 
 ## 项目概述
 
@@ -69,68 +76,6 @@
 | Minimax | MiniMax-M2.7 | https://api.minimaxi.com/v1 | 国产模型备选 |
 | 本地模型 | all-MiniLM-L6-v2 | - | 向量嵌入模型（DJL 推理） |
 
-## 项目结构
-
-```
-resume-optimizer/
-├── src/main/java/com/flowerrivertears/resumeoptimizer/
-│   ├── config/           # 配置类
-│   │   ├── CorsConfig.java          # CORS 跨域配置（仅允许 localhost:5173）
-│   │   ├── LlmConfig.java           # LLM 模型配置（4个提供商 + 动态选择）
-│   │   └── VectorStoreConfig.java   # 向量存储配置（InMemoryEmbeddingStore）
-│   ├── controller/       # 控制器层
-│   │   ├── AiAgentController.java   # AI 智能体接口（对话/生成/分析/搜索/RAG/权重/健康检查）
-│   │   ├── ApiKeyController.java    # API Key 管理（验证/列表/删除/提供商查询）
-│   │   └── ResumeController.java    # 简历处理 + ATS 评分 + 模板生成
-│   ├── model/            # 数据模型
-│   │   ├── AiChatRequest.java       # AI 聊天请求（message/provider/keyId/context）
-│   │   ├── AiChatResponse.java      # AI 聊天响应（answer/thinking/searchResults）
-│   │   ├── AnalysisRequest.java     # 分析请求（@Builder 支持）
-│   │   ├── AnalysisResponse.java    # 分析响应（技能/分类/差距/建议）
-│   │   ├── AtsScoreResponse.java    # ATS 评分响应（多维度 + 分类详情 + 技能差距）
-│   │   ├── ApiKeyInfo.java          # API Key 信息（内存存储）
-│   │   ├── SearchResult.java        # 检索结果（向量分/关键词分/加权分）
-│   │   ├── SkillGap.java            # 技能差距（重要性/建议/资源）
-│   │   └── WeightConfig.java        # 权重配置（4维度）
-│   ├── service/          # 业务服务
-│   │   ├── AiAgentService.java      # AI 智能体服务（多模型/思考解析/Prompt模板）
-│   │   ├── AtsScoreService.java     # ATS 评分服务（LLM+RAG深度分析 + 技能推断）
-│   │   ├── RagService.java          # RAG 检索服务（混合检索 + 语义分块 + 中文分词）
-│   │   ├── WeightedRetrievalService.java  # 权重检索服务（4维度加权排序）
-│   │   ├── ApiKeyService.java       # API Key 管理服务（验证/存储/脱敏/模型创建）
-│   │   ├── ResumeAnalysisService.java    # 简历分析服务（技能提取/匹配/差距分析）
-│   │   └── ResumeTemplateService.java    # 简历模板服务（优化生成/对比视图/高亮）
-│   └── util/             # 工具类
-│       └── FileParser.java          # 文件解析工具（PDF/DOCX/TXT + 大小/类型校验）
-├── src/main/resources/
-│   └── application.yaml  # 应用配置（LLM/RAG/权重/CORS）
-├── docs/                 # 项目文档
-│   ├── README.md         # 项目背景（本文档）
-│   ├── ARCHITECTURE.md   # 架构设计
-│   ├── FRONTEND.md       # 前端规范
-│   ├── SECURITY.md       # 安全规范
-│   ├── STYLE.md          # 代码风格
-│   └── GUIDE.md          # 文档设计原理
-└── pom.xml               # Maven 依赖配置
-
-resume-optimizer-frontend/
-├── src/
-│   ├── components/       # Vue 组件
-│   │   ├── AiChat.vue              # AI 聊天组件（Markdown渲染/思考过程/RAG结果/快捷提问）
-│   │   ├── AiAnalysis.vue          # AI 深度分析组件（模型选择/分析报告/RAG引用）
-│   │   ├── AnalysisResult.vue      # ATS 评分结果（雷达图/柱状图/关键词/建议/结构/PDF导出）
-│   │   ├── ApiKeyInput.vue         # API Key 输入组件（4提供商/高级设置/折叠面板）
-│   │   ├── ResumeEditor.vue        # 简历编辑器（文本编辑/职位描述/触发分析）
-│   │   ├── ResumeUploader.vue      # 文件上传（拖拽/粘贴/示例简历）
-│   │   └── TemplateComparison.vue  # 模板对比（左右对比/技能高亮/使用模板）
-│   ├── api.js            # API 接口定义（apiPost/apiGet/apiDelete/apiUpload + renderMarkdown）
-│   ├── markdown.js       # Markdown 解析器（自定义实现，XSS防护）
-│   ├── main.js           # 应用入口
-│   └── App.vue           # 根组件（状态管理/Tab导航/组件编排）
-├── package.json          # NPM 依赖配置
-└── vite.config.js        # Vite 构建配置（代理到 localhost:9000）
-```
-
 ## 核心功能
 
 ### 1. 简历解析与上传
@@ -178,18 +123,6 @@ ATS 评分是本系统的核心功能，通过 LLM + RAG 深度检索实现动�
         ├── 推断常见缺失技能（基于技能分类）
         └── 计算匹配率和评分
 ```
-
-**展示模块：**
-
-| 模块 | 描述 |
-|------|------|
-| 📊 评分卡片 | ATS 综合评分 + 职位匹配度 + 匹配/缺失技能数量 |
-| 🎯 技能雷达图 | ECharts 雷达图展示各分类（前端/后端/数据库/DevOps）匹配度 |
-| 📊 技能柱状图 | ECharts 柱状图展示各分类匹配/缺失技能数量对比 |
-| 📋 关键词详情 | 已匹配技能 + 缺失技能 + 学习建议 + 学习资源 |
-| 💡 优化建议 | 按优先级排序的优化建议卡片（高🔴/中🟡/低🟢） |
-| 🏗️ 结构分析 | 简历结构完整性检查 + 字数统计 |
-| 📄 PDF 导出 | 分析报告导出为 PDF 格式 |
 
 ### 3. AI 智能体对话
 
@@ -246,18 +179,6 @@ export OPENAI_API_KEY=your-api-key
 
 后端服务运行在 `http://localhost:9000`
 
-启动成功后会看到以下日志：
-
-```
-Initializing ChatModel: provider=openai, model=gpt-4o-mini
-Initializing DashScope ChatModel: model=qwen-plus
-Initializing DeepSeek ChatModel: model=deepseek-chat
-Initializing Minimax ChatModel: model=MiniMax-M2.7
-Initializing local embedding model (all-MiniLM-L6-v2)
-Initializing InMemory EmbeddingStore
-Tomcat started on port 9000
-```
-
 ### 前端启动
 
 ```bash
@@ -292,7 +213,7 @@ npm run dev
 ```yaml
 ai:
   llm:
-    provider: openai  # 当前激活的默认提供商: openai, dashscope, deepseek, minimax
+    provider: openai
     openai:
       api-key: ${OPENAI_API_KEY}
       base-url: https://api.openai.com/v1
@@ -319,9 +240,9 @@ ai:
 ai:
   rag:
     embedding:
-      provider: local  # 本地向量模型（all-MiniLM-L6-v2）
+      provider: local
     vector-store:
-      type: in-memory  # 内存向量存储
+      type: in-memory
       max-results: 5
       min-score: 0.5
 ```
@@ -333,10 +254,10 @@ ai:
   weight:
     enabled: true
     dimensions:
-      skill-match: 0.35        # 技能匹配权重
-      semantic-similarity: 0.30 # 语义相似度权重
-      category-relevance: 0.20  # 类别相关性权重
-      experience-level: 0.15    # 经验级别权重
+      skill-match: 0.35
+      semantic-similarity: 0.30
+      category-relevance: 0.20
+      experience-level: 0.15
 ```
 
 ## API 接口
@@ -359,12 +280,8 @@ Content-Type: application/json
 
 参数: { resumeText, jobDescription }
 返回: {
-  foundKeywords: ["Java", "Vue.js", ...],
-  missingKeywords: ["Docker", "Kubernetes", ...],
-  skillGaps: [{ skill, category, importance, reason, suggestion, learningResources }],
-  categoryScores: { frontend, backend, database, devops },
-  structureAnalysis: { hasContact, hasSummary, hasExperience, hasEducation, hasSkills, wordCount },
-  suggestions: [{ type, title, description, priority, impact }]
+  foundKeywords, missingKeywords, skillGaps,
+  categoryScores, structureAnalysis, suggestions
 }
 ```
 
@@ -376,28 +293,11 @@ Content-Type: application/json
 
 参数: { resumeText, jobDescription, provider, keyId }
 返回: {
-  overallScore: 85,
-  grade: "优秀",
-  gradeDescription: "简历质量优秀...",
-  jobMatchScore: { score, level, description, totalRequired, matchedRequired },
-  structureScore: { score, hasContact, hasSummary, hasExperience, hasEducation, hasSkills, wordCount },
-  contentScore: { score, skillCount, keywordDensity, densityLevel },
-  keywordScore: { score, totalKeywords, matchedKeywords, matchRate },
-  matchedSkills: ["Java", "Vue.js", ...],
-  missingSkills: ["Docker", "Kubernetes", ...],
-  matchedCount: 9,
-  missingCount: 3,
-  categoryDetails: {
-    frontend: { name, score, level, matched, total, matchedSkills, missingSkills },
-    backend: { ... },
-    database: { ... },
-    devops: { ... }
-  },
-  skillGapDetails: [ { skill, category, importance, reason, suggestion, learningResources } ],
-  optimizationSuggestions: [ { type, title, description, priority, impact } ],
-  responseTimeMs: 1234,
-  provider: "llm-enhanced",
-  keyId: "xxx"
+  overallScore, grade, gradeDescription,
+  jobMatchScore, structureScore, contentScore, keywordScore,
+  matchedSkills, missingSkills, matchedCount, missingCount,
+  categoryDetails, skillGapDetails, optimizationSuggestions,
+  responseTimeMs, provider, keyId
 }
 ```
 
@@ -405,8 +305,6 @@ Content-Type: application/json
 
 ```
 POST /api/ai/chat
-Content-Type: application/json
-
 参数: { message, provider, keyId, context }
 返回: { answer, thinking, searchResults, provider, model, responseTimeMs }
 ```
@@ -415,8 +313,6 @@ Content-Type: application/json
 
 ```
 POST /api/ai/generate-resume
-Content-Type: application/json
-
 参数: { userInput, provider, keyId }
 返回: { answer, searchResults, provider, model, responseTimeMs }
 ```
@@ -425,20 +321,8 @@ Content-Type: application/json
 
 ```
 POST /api/ai/analyze?keyId=xxx
-Content-Type: application/json
-
 参数: { resumeText, jobDescription }
 返回: { answer, thinking, searchResults, provider, model, responseTimeMs }
-```
-
-### AI 增强搜索
-
-```
-POST /api/ai/search
-Content-Type: application/json
-
-参数: { query, matchedSkills, jobSkills, provider, keyId }
-返回: { answer, searchResults, provider, model, responseTimeMs }
 ```
 
 ### RAG 知识库管理
@@ -453,17 +337,17 @@ DELETE /api/ai/rag/clear        # 清空知识库
 ### 权重配置管理
 
 ```
-GET  /api/ai/weight/config              # 获取当前权重配置
-PUT  /api/ai/weight/config              # 更新权重配置
-POST /api/ai/weight/config/{name}       # 保存自定义权重配置
-GET  /api/ai/weight/config/{name}       # 获取自定义权重配置
+GET    /api/ai/weight/config            # 获取当前权重配置
+PUT    /api/ai/weight/config            # 更新权重配置
+POST   /api/ai/weight/config/{name}     # 保存自定义权重配置
+GET    /api/ai/weight/config/{name}     # 获取自定义权重配置
 DELETE /api/ai/weight/config/{name}     # 删除自定义权重配置
 ```
 
 ### API Key 管理
 
 ```
-POST   /api/ai/keys/validate    # 验证 API Key（发送测试请求）
+POST   /api/ai/keys/validate    # 验证 API Key
 GET    /api/ai/keys/list        # 列出已存储的 Key
 GET    /api/ai/keys/{keyId}     # 获取指定 Key 信息
 DELETE /api/ai/keys/{keyId}     # 删除指定 Key
@@ -481,7 +365,7 @@ GET  /api/templates/{type}      # 获取简历模板（default/tech/senior）
 
 ```
 GET /api/health                 # 简历服务健康检查
-GET /api/ai/health              # AI 服务健康检查（返回模型/知识库状态）
+GET /api/ai/health              # AI 服务健康检查
 ```
 
 ## 文档索引
@@ -497,10 +381,6 @@ GET /api/ai/health              # AI 服务健康检查（返回模型/知识库
 ## 许可证
 
 本项目仅供学习和研究使用。
-
-## 贡献指南
-
-欢迎提交 Issue 和 Pull Request。
 
 ---
 
