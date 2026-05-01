@@ -8,22 +8,22 @@
 
 系统采用前后端分离架构，后端基于 Spring Boot 4.0.5 + LangChain4j 1.0.1，前端基于 Vue.js 3.5.30 + ECharts 5.5.0，支持多种 LLM 提供商（OpenAI、通义千问、DeepSeek、MiniMax）。
 
-## 核心功能
+## ✨ 核心功能
 
 | 功能模块 | 描述 |
 |---------|------|
-| 简历解析 | 支持 PDF、Word、TXT 格式简历上传与解析 |
-| 智能分析 | 基于关键词和语义分析简历内容，提取技能、分析结构 |
-| ATS 综合评分 | LLM+RAG 深度评分，多维度分析（职位匹配度/结构/内容/关键词） |
-| 岗位匹配 | 分析简历与目标岗位的匹配度，生成技能雷达图和柱状图 |
-| AI 对话 | 基于 LLM 的智能问答与简历生成，支持思考过程展示 |
-| RAG 检索 | 检索增强生成，混合检索（向量+关键词）+ 权重排序 |
-| 技能差距分析 | 识别缺失技能并提供学习建议和资源链接 |
-| 优化建议 | 按优先级排序的针对性改进建议（高/中/低） |
-| 模板对比 | 原简历与优化简历的左右对比视图，技能高亮标记 |
-| PDF 导出 | 分析报告导出为 PDF 格式 |
+| 📄 简历解析 | 支持 PDF、Word、TXT 格式简历上传与解析 |
+| 🎯 智能分析 | 基于关键词和语义分析简历内容，提取技能、分析结构 |
+| 📊 ATS 综合评分 | LLM+RAG 深度评分，多维度分析（职位匹配度/结构/内容/关键词） |
+| 📈 岗位匹配 | 分析简历与目标岗位的匹配度，生成技能雷达图和柱状图 |
+| 🤖 AI 对话 | 基于 LLM 的智能问答与简历生成，支持思考过程展示 |
+| 🔍 RAG 检索 | 检索增强生成，混合检索（向量+关键词）+ 权重排序 |
+| 📚 技能差距分析 | 识别缺失技能并提供学习建议和资源链接 |
+| 💡 优化建议 | 按优先级排序的针对性改进建议（高/中/低） |
+| 📝 模板对比 | 原简历与优化简历的左右对比视图，技能高亮标记 |
+| 📑 PDF 导出 | 分析报告导出为 PDF 格式 |
 
-## 技术栈
+## 🛠️ 技术栈
 
 ### 后端
 
@@ -54,7 +54,7 @@
 | Minimax | MiniMax-M2.7 | 国产模型备选 |
 | 本地模型 | all-MiniLM-L6-v2 | 向量嵌入模型（DJL 推理） |
 
-## 快速开始
+## 🚀 快速开始
 
 ### 环境要求
 
@@ -66,6 +66,11 @@
 
 ```bash
 cd resume-optimizer
+
+# 可选：配置环境变量
+export OPENAI_API_KEY=your-api-key
+
+# 启动服务
 ./mvnw spring-boot:run
 ```
 
@@ -75,7 +80,11 @@ cd resume-optimizer
 
 ```bash
 cd resume-optimizer-frontend
+
+# 安装依赖
 npm install
+
+# 开发模式启动
 npm run dev
 ```
 
@@ -88,9 +97,10 @@ npm run dev
 3. 上传简历文件（PDF/DOCX/TXT）或粘贴文本
 4. 点击「开始分析」查看 ATS 评分报告
 5. 查看技能雷达图、关键词详情、优化建议
-6. 切换到「AI 助手」进行智能对话
+6. 使用「模板对比」查看优化版简历
+7. 切换到「AI 助手」进行智能对话
 
-## API 接口
+## 📡 API 接口
 
 | 接口 | 方法 | 描述 |
 |-----|------|------|
@@ -106,9 +116,7 @@ npm run dev
 | `/api/ai/keys/validate` | POST | API Key 验证 |
 | `/api/health` | GET | 健康检查 |
 
-详细 API 文档请参见 [docs/README.md](./docs/README.md)
-
-## 项目结构
+## 📁 项目结构
 
 ```
 resume-optimizer/                    # 后端项目
@@ -130,23 +138,81 @@ resume-optimizer-frontend/           # 前端项目
 └── vite.config.js                   # Vite 配置
 ```
 
-## 文档索引
+## ⚙️ 配置说明
 
-| 文档 | 描述 |
-|-----|------|
-| [docs/README.md](./docs/README.md) | 项目背景与完整 API 文档 |
-| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | 系统架构设计 |
-| [docs/FRONTEND.md](./docs/FRONTEND.md) | 前端开发规范 |
-| [docs/SECURITY.md](./docs/SECURITY.md) | 安全规范 |
-| [docs/STYLE.md](./docs/STYLE.md) | 代码风格指南 |
-| [docs/GUIDE.md](./docs/GUIDE.md) | 文档设计原理 |
+### LLM 模型配置 (application.yaml)
 
-## 隐私声明
+```yaml
+ai:
+  llm:
+    provider: openai
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      base-url: https://api.openai.com/v1
+      model-name: gpt-4o-mini
+      temperature: 0.7
+      max-tokens: 4096
+```
 
-- 所有简历数据仅在本地处理，不上传到第三方
-- API Key 仅存储在内存中，应用重启后清空
-- 简历内容不持久化存储
+### RAG 配置
 
-## 许可证
+```yaml
+ai:
+  rag:
+    embedding:
+      provider: local
+    vector-store:
+      type: in-memory
+      max-results: 5
+      min-score: 0.5
+```
+
+## 🔒 隐私声明
+
+- 🔒 **本地处理** - 所有简历数据仅在本地处理，不上传到第三方
+- 🚫 **不持久化** - API Key 仅存储在内存中，应用重启后清空
+- 💾 **不存储简历** - 简历内容不持久化存储
+
+## 🤝 贡献指南
+
+欢迎提交 Issue 和 Pull Request！
+
+### 开发流程
+
+1. Fork 本仓库
+2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'feat: 添加某个功能'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 提交 Pull Request
+
+### 提交规范
+
+| Type | 描述 |
+|------|------|
+| `feat` | 新功能 |
+| `fix` | Bug 修复 |
+| `docs` | 文档更新 |
+| `style` | 代码格式调整 |
+| `refactor` | 重构 |
+| `test` | 测试相关 |
+
+## 📝 更新日志
+
+### v1.0.0 (2026-05-01)
+
+- ✨ 初始版本发布
+- ✅ 支持 PDF/DOCX/TXT 简历解析
+- ✅ 实现 ATS 综合评分（LLM+RAG）
+- ✅ 技能雷达图和柱状图可视化
+- ✅ AI 智能对话与简历生成
+- ✅ RAG 混合检索与权重排序
+- ✅ 支持 4 种 LLM 提供商
+- ✅ 模板对比与 PDF 导出
+
+## 📄 许可证
 
 本项目仅供学习和研究使用。
+
+---
+
+**Star** ⭐ 本项目以获取最新更新！

@@ -8,22 +8,22 @@ An AI-powered intelligent resume analysis and optimization system, integrating L
 
 The system uses a frontend-backend separation architecture. The backend is based on Spring Boot 4.0.5 + LangChain4j 1.0.1, and the frontend is based on Vue.js 3.5.30 + ECharts 5.5.0, supporting multiple LLM providers (OpenAI, DashScope, DeepSeek, MiniMax).
 
-## Core Features
+## ✨ Core Features
 
 | Feature | Description |
 |---------|-------------|
-| Resume Parsing | Support PDF, Word, TXT format resume upload and parsing |
-| Intelligent Analysis | Keyword and semantic analysis of resume content, skill extraction, structure analysis |
-| ATS Scoring | LLM+RAG deep scoring, multi-dimensional analysis (job match/structure/content/keywords) |
-| Job Matching | Analyze resume-job match rate, generate skill radar charts and bar charts |
-| AI Chat | LLM-based intelligent Q&A and resume generation, with thinking process display |
-| RAG Retrieval | Retrieval-augmented generation, hybrid search (vector + keyword) + weighted ranking |
-| Skill Gap Analysis | Identify missing skills and provide learning suggestions and resource links |
-| Optimization Suggestions | Priority-sorted targeted improvement suggestions (High/Medium/Low) |
-| Template Comparison | Side-by-side comparison of original vs. optimized resume, with skill highlighting |
-| PDF Export | Export analysis reports to PDF format |
+| 📄 Resume Parsing | Support PDF, Word, TXT format resume upload and parsing |
+| 🎯 Intelligent Analysis | Keyword and semantic analysis of resume content, skill extraction, structure analysis |
+| 📊 ATS Scoring | LLM+RAG deep scoring, multi-dimensional analysis (job match/structure/content/keywords) |
+| 📈 Job Matching | Analyze resume-job match rate, generate skill radar charts and bar charts |
+| 🤖 AI Chat | LLM-based intelligent Q&A and resume generation, with thinking process display |
+| 🔍 RAG Retrieval | Retrieval-augmented generation, hybrid search (vector + keyword) + weighted ranking |
+| 📚 Skill Gap Analysis | Identify missing skills and provide learning suggestions and resource links |
+| 💡 Optimization Suggestions | Priority-sorted targeted improvement suggestions (High/Medium/Low) |
+| 📝 Template Comparison | Side-by-side comparison of original vs. optimized resume, with skill highlighting |
+| 📑 PDF Export | Export analysis reports to PDF format |
 
-## Tech Stack
+## 🛠️ Tech Stack
 
 ### Backend
 
@@ -54,7 +54,7 @@ The system uses a frontend-backend separation architecture. The backend is based
 | Minimax | MiniMax-M2.7 | Alternative domestic model |
 | Local Model | all-MiniLM-L6-v2 | Vector embedding model (DJL inference) |
 
-## Quick Start
+## 🚀 Quick Start
 
 ### Requirements
 
@@ -66,6 +66,11 @@ The system uses a frontend-backend separation architecture. The backend is based
 
 ```bash
 cd resume-optimizer
+
+# Optional: Configure environment variables
+export OPENAI_API_KEY=your-api-key
+
+# Start service
 ./mvnw spring-boot:run
 ```
 
@@ -75,7 +80,11 @@ Backend service runs at `http://localhost:9000`
 
 ```bash
 cd resume-optimizer-frontend
+
+# Install dependencies
 npm install
+
+# Start in development mode
 npm run dev
 ```
 
@@ -87,10 +96,11 @@ Frontend service runs at `http://localhost:5173`
 2. Enter and validate API Key in the "AI Model Configuration" panel
 3. Upload resume file (PDF/DOCX/TXT) or paste text
 4. Click "Start Analysis" to view ATS scoring report
-5. View skill radar chart, keyword details, and optimization suggestions
-6. Switch to "AI Assistant" for intelligent conversation
+5. View skill radar chart, keyword details, optimization suggestions
+6. Use "Template Comparison" to view optimized resume
+7. Switch to "AI Assistant" for intelligent conversation
 
-## API Endpoints
+## 📡 API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -106,9 +116,7 @@ Frontend service runs at `http://localhost:5173`
 | `/api/ai/keys/validate` | POST | API Key validation |
 | `/api/health` | GET | Health check |
 
-For detailed API documentation, see [docs/README.en.md](./docs/README.en.md)
-
-## Project Structure
+## 📁 Project Structure
 
 ```
 resume-optimizer/                    # Backend project
@@ -130,23 +138,81 @@ resume-optimizer-frontend/           # Frontend project
 └── vite.config.js                   # Vite configuration
 ```
 
-## Documentation Index
+## ⚙️ Configuration
 
-| Document | Description |
-|----------|-------------|
-| [docs/README.en.md](./docs/README.en.md) | Project background and complete API documentation |
-| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | System architecture design |
-| [docs/FRONTEND.md](./docs/FRONTEND.md) | Frontend development specifications |
-| [docs/SECURITY.md](./docs/SECURITY.md) | Security specifications |
-| [docs/STYLE.md](./docs/STYLE.md) | Code style guide |
-| [docs/GUIDE.md](./docs/GUIDE.md) | Documentation design principles |
+### LLM Model Configuration (application.yaml)
 
-## Privacy Statement
+```yaml
+ai:
+  llm:
+    provider: openai
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      base-url: https://api.openai.com/v1
+      model-name: gpt-4o-mini
+      temperature: 0.7
+      max-tokens: 4096
+```
 
-- All resume data is processed locally only, not uploaded to third parties
-- API Keys are stored in memory only and cleared on application restart
-- Resume content is not persisted
+### RAG Configuration
 
-## License
+```yaml
+ai:
+  rag:
+    embedding:
+      provider: local
+    vector-store:
+      type: in-memory
+      max-results: 5
+      min-score: 0.5
+```
+
+## 🔒 Privacy Statement
+
+- 🔒 **Local Processing** - All resume data is processed locally only, not uploaded to third parties
+- 🚫 **No Persistence** - API Keys are stored in memory only and cleared on application restart
+- 💾 **No Resume Storage** - Resume content is not persisted
+
+## 🤝 Contributing
+
+Issues and Pull Requests are welcome!
+
+### Development Flow
+
+1. Fork this repository
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'feat: add some feature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Submit a Pull Request
+
+### Commit Convention
+
+| Type | Description |
+|------|-------------|
+| `feat` | New feature |
+| `fix` | Bug fix |
+| `docs` | Documentation update |
+| `style` | Code formatting |
+| `refactor` | Refactoring |
+| `test` | Testing |
+
+## 📝 Changelog
+
+### v1.0.0 (2026-05-01)
+
+- ✨ Initial release
+- ✅ Support PDF/DOCX/TXT resume parsing
+- ✅ ATS comprehensive scoring (LLM+RAG)
+- ✅ Skill radar chart and bar chart visualization
+- ✅ AI intelligent chat and resume generation
+- ✅ RAG hybrid search and weighted ranking
+- ✅ Support 4 LLM providers
+- ✅ Template comparison and PDF export
+
+## 📄 License
 
 This project is for learning and research purposes only.
+
+---
+
+**Star** ⭐ this project for latest updates!
