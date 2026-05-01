@@ -1,8 +1,10 @@
 package com.flowerrivertears.resumeoptimizer.controller;
 
+import com.flowerrivertears.resumeoptimizer.model.AtsScoreResponse;
 import com.flowerrivertears.resumeoptimizer.model.AnalysisRequest;
 import com.flowerrivertears.resumeoptimizer.model.AnalysisResponse;
 import com.flowerrivertears.resumeoptimizer.model.SkillGap;
+import com.flowerrivertears.resumeoptimizer.service.AtsScoreService;
 import com.flowerrivertears.resumeoptimizer.service.ResumeAnalysisService;
 import com.flowerrivertears.resumeoptimizer.service.ResumeTemplateService;
 import com.flowerrivertears.resumeoptimizer.util.FileParser;
@@ -19,6 +21,9 @@ public class ResumeController {
 
     @Autowired
     private ResumeAnalysisService analysisService;
+
+    @Autowired
+    private AtsScoreService atsScoreService;
 
     @Autowired
     private FileParser fileParser;
@@ -51,6 +56,22 @@ public class ResumeController {
     @PostMapping("/analyze")
     public ResponseEntity<AnalysisResponse> analyze(@RequestBody AnalysisRequest request) {
         AnalysisResponse result = analysisService.analyze(request);
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * ATS深度评分分析（LLM+RAG增强）
+     */
+    @PostMapping("/ats-score")
+    public ResponseEntity<AtsScoreResponse> atsScore(@RequestBody Map<String, Object> request) {
+        String resumeText = (String) request.get("resumeText");
+        String jobDescription = (String) request.get("jobDescription");
+        String provider = (String) request.get("provider");
+        String keyId = (String) request.get("keyId");
+        
+        AtsScoreResponse result = atsScoreService.calculateAtsScore(
+            resumeText, jobDescription, provider, keyId);
+        
         return ResponseEntity.ok(result);
     }
 

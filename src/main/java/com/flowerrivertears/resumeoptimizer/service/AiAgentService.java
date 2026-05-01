@@ -79,14 +79,20 @@ public class AiAgentService {
             如果检索到的数据不足以回答问题，请如实告知用户。
             回答要完整详细，不要中途截断。
             
-            输出格式要求：
+            输出格式要求（严格遵守）：
             - 使用Markdown格式输出，确保结构清晰
             - 使用二级标题(##)和三级标题(###)组织内容
             - 关键信息用**加粗**突出
-            - 使用表格呈现对比数据
+            - 使用表格呈现对比数据，表格前后各留一个空行
             - 使用列表呈现多条建议
-            - 每个部分之间用---分隔
+            - 每个部分之间用---分隔，分隔线前后各留一个空行
             - 不要使用#一级标题
+            - 表格必须有表头行和对齐行（如|:---|:---|）
+            - 列表项之间不要空行
+            - 引用块使用>符号
+            - 行内代码使用反引号包裹
+            - 不要输出重复的分隔线
+            - emoji放在标题文字前面，如：## 🎯 标题
             """;
 
     private static final String RESUME_GENERATE_PROMPT = """
@@ -100,7 +106,8 @@ public class AiAgentService {
             
             请严格按照以下Markdown格式生成简历，确保排版规范、重点突出：
             
-            ## 基本信息
+            ## 📋 基本信息
+            
             | 项目 | 内容 |
             |:-----|:-----|
             | **姓名** | [姓名] |
@@ -110,20 +117,24 @@ public class AiAgentService {
             
             ---
             
-            ## 求职意向
+            ## 🎯 求职意向
+            
             **[推荐岗位名称]**
+            
             [一段话概括核心竞争力和求职方向]
             
             ---
             
-            ## 教育背景
+            ## 🎓 教育背景
+            
             | 学校 | 专业 | 学历 | 时间 |
             |:-----|:-----|:-----|:-----|
             | [学校] | [专业] | [学历] | [时间] |
             
             ---
             
-            ## 专业技能
+            ## 💻 专业技能
+            
             ### 后端开发
             - **[技术名]** - [熟练程度描述]
             
@@ -135,9 +146,11 @@ public class AiAgentService {
             
             ---
             
-            ## 项目经历
+            ## 🏗️ 项目经历
+            
             ### [项目名称]
             **技术栈：** [技术栈]
+            
             **项目简介：** [一段话描述]
             - 负责了[具体职责]
             - 实现了[具体功能]，效果[量化数据]
@@ -145,7 +158,7 @@ public class AiAgentService {
             
             ---
             
-            ## 自我评价
+            ## 💡 自我评价
             - [核心竞争力1]
             - [核心竞争力2]
             - [核心竞争力3]
@@ -155,6 +168,8 @@ public class AiAgentService {
             - 项目描述要具体，必须包含量化成果
             - 技能分类要清晰
             - 不要使用#一级标题
+            - 表格前后必须留空行
+            - 分隔线前后必须留空行
             """;
 
     private static final String DEEP_ANALYSIS_PROMPT = """
@@ -172,6 +187,7 @@ public class AiAgentService {
             请严格按照以下Markdown格式输出分析报告：
             
             ## 🎯 岗位匹配分析
+            
             | 匹配岗位 | 匹配度 | 差距说明 |
             |:---------|:-------|:---------|
             | [岗位名] | 高/中/低 | [具体差距] |
@@ -179,6 +195,7 @@ public class AiAgentService {
             ---
             
             ## 💪 核心竞争力
+            
             1. **[优势1]** - [具体说明]
             2. **[优势2]** - [具体说明]
             3. **[优势3]** - [具体说明]
@@ -186,6 +203,7 @@ public class AiAgentService {
             ---
             
             ## 📈 技能提升建议
+            
             ### 短期提升（1-3个月）
             - [具体学什么] → [怎么学] → [预期效果]
             
@@ -198,6 +216,7 @@ public class AiAgentService {
             ---
             
             ## 📝 简历优化建议
+            
             | 优化项 | 当前状态 | 建议改进 | 优先级 |
             |:-------|:---------|:---------|:-------|
             | [项目] | [现状] | [建议] | 高/中/低 |
@@ -205,11 +224,17 @@ public class AiAgentService {
             ---
             
             ## 🔍 市场趋势
+            
             - **市场需求：** [相关岗位需求分析]
             - **薪资参考：** [范围]
             - **行业方向：** [发展趋势]
             
-            注意：不要使用#一级标题，保持格式规范。
+            注意：
+            - 不要使用#一级标题，保持格式规范
+            - 表格前后必须留空行
+            - 分隔线前后必须留空行
+            - 列表项之间不要空行
+            - 不要输出重复的分隔线
             """;
 
     private static final String SKILL_SEARCH_PROMPT = """
@@ -447,7 +472,33 @@ public class AiAgentService {
             thinking = null;
         }
 
+        answer = cleanupMarkdown(answer);
+
         return new ParsedResponse(answer, thinking);
+    }
+
+    private String cleanupMarkdown(String text) {
+        if (text == null || text.isEmpty()) return text;
+
+        String r = text;
+
+        r = r.replace("\r\n", "\n").replace("\r", "\n");
+
+        r = r.replaceAll("\n{3,}", "\n\n");
+
+        r = r.replaceAll("(---\\s*\n)\\s*(---)", "$1");
+
+        r = r.replaceAll("([^\\n])\\n(\\|)", "$1\n\n$2");
+
+        r = r.replaceAll("(\\|[^\\n]+\\|\\s*\\n)\\s*([^|])", "$1\n$2");
+
+        r = r.replaceAll("([^\\n])\\n(#{2,6}\\s)", "$1\n\n$2");
+
+        r = r.replaceAll("(---\\s*\\n)\\s*(#{2,6}\\s)", "$1\n$2");
+
+        r = r.replaceAll("([^\\n])\\n(---\\s*\\n)", "$1\n\n$2");
+
+        return r.trim();
     }
 
     private ChatModel resolveModel(String provider, String keyId,
