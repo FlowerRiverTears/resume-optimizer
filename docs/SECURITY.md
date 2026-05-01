@@ -13,12 +13,10 @@ API Key 采用**内存存储**策略，不持久化到数据库或文件系统�
 ```java
 @Service
 public class ApiKeyService {
-    // 内存存储，应用重启后清空
     private final Map<String, ApiKeyInfo> keyStore = new ConcurrentHashMap<>();
     
     public String storeKey(String provider, String apiKey, String baseUrl, String modelName) {
         String keyId = UUID.randomUUID().toString();
-        // 存储到内存
         keyStore.put(keyId, ApiKeyInfo.builder()
             .keyId(keyId)
             .provider(provider)
@@ -34,12 +32,12 @@ public class ApiKeyService {
 
 ### 安全原则
 
-| 原则 | 描述 |
-|-----|------|
-| 不持久化 | API Key 仅存储在内存中，不写入数据库或文件 |
-| 不记录日志 | API Key 不出现在日志输出中 |
-| 不传输给前端 | 返回给前端的只有 keyId，不包含实际 Key |
-| 定期清理 | 可配置 Key 的过期时间 |
+| 原则 | 描述 | 实现方式 |
+|-----|------|---------|
+| 不持久化 | API Key 仅存储在内存中，不写入数据库或文件 | ConcurrentHashMap，重启清空 |
+| 不记录日志 | API Key 不出现在日志输出中 | 日志中使用 maskKey() 脱敏 |
+| 不传输给前端 | 返回给前端的只有 keyId，不包含实际 Key | ApiKeyInfo 返回时过滤 apiKey 字段 |
+| 验证后存储 | 只有验证通过的 Key 才会存储 | 发送测试请求验证有效性 |
 
 ### 验证机制
 
@@ -53,7 +51,6 @@ public ApiKeyValidateResponse validateKey(ApiKeyValidateRequest request) {
             request.getModelName()
         );
         
-        // 发送测试请求验证 Key 有效性
         String response = testModel.chat("Hi");
         
         return ApiKeyValidateResponse.builder()
@@ -64,9 +61,37 @@ public ApiKeyValidateResponse validateKey(ApiKeyValidateRequest request) {
         log.warn("API Key validation failed: {}", e.getMessage());
         return ApiKeyValidateResponse.builder()
             .valid(false)
-            .message("API Key 验证失败")
+            .message(extractErrorMessage(e))
             .build();
     }
+}
+```
+
+### 提供商归一化
+
+```java
+private String normalizeProvider(String provider) {
+    if (provider == null) return "openai";
+    String lower = provider.toLowerCase();
+    if (lower.contains("qwen") || lower.contains("dashscope")) return "dashscope";
+    if (lower.contains("deepseek")) return "deepseek";
+    if (lower.contains("minimax") || lower.contains("minimaxi")) return "minimax";
+    return lower;
+}
+```
+
+### 错误信息提取
+
+```java
+private String extractErrorMessage(Exception e) {
+    String msg = e.getMessage();
+    if (msg.contains("401")) return "API Key 无效或已过期";
+    if (msg.contains("403")) return "没有访问权限";
+    if (msg.contains("404")) return "模型不存在或API地址错误";
+    if (msg.contains("429")) return "请求过于频繁，请稍后重试";
+    if (msg.contains("500")) return "AI 服务内部错误";
+    if (msg.contains("ConnectException")) return "网络连接失败，请检查API地址";
+    return "API Key 验证失败：" + msg;
 }
 ```
 
@@ -77,11 +102,11 @@ public ApiKeyValidateResponse validateKey(ApiKeyValidateRequest request) {
 1. **本地处理** - 所有简历数据仅在本地服务器处理，不上传到第三方
 2. **不存储简历** - 简历内容不持久化存储，仅在会话期间保留在内存
 3. **即时清理** - 处理完成后及时清理临时数据
+4. **最小化传输** - AI 对话只传输简历摘要（前500字），不传输全文
 
 ### 敏感信息处理
 
 ```java
-// 日志脱敏
 log.info("Processing resume for user: {}", maskEmail(userEmail));
 
 private String maskEmail(String email) {
@@ -89,35 +114,35 @@ private String maskEmail(String email) {
     String[] parts = email.split("@");
     return parts[0].substring(0, Math.min(2, parts[0].length())) + "***@" + parts[1];
 }
+
+private String maskKey(String apiKey) {
+    if (apiKey == null || apiKey.length() <= 8) return "***";
+    return apiKey.substring(0, 4) + "***" + apiKey.substring(apiKey.length() - 4);
+}
 ```
 
 ### 文件上传安全
 
 ```java
 public class FileParser {
-    // 允许的文件类型
     private static final Set<String> ALLOWED_TYPES = Set.of(
         "application/pdf",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "text/plain"
     );
     
-    // 最大文件大小 (10MB)
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024;
     
     public static String parse(MultipartFile file) throws IOException {
-        // 验证文件大小
         if (file.getSize() > MAX_FILE_SIZE) {
             throw new IllegalArgumentException("文件大小超过限制");
         }
         
-        // 验证文件类型
         String contentType = file.getContentType();
         if (!ALLOWED_TYPES.contains(contentType)) {
             throw new IllegalArgumentException("不支持的文件类型");
         }
         
-        // 解析文件内容
         return doParse(file);
     }
 }
@@ -133,17 +158,14 @@ public class AiAgentController {
     
     @PostMapping("/api/ai/chat")
     public AiChatResponse chat(@RequestBody AiChatRequest request) {
-        // 非空校验
         if (request.getMessage() == null || request.getMessage().isBlank()) {
             throw new IllegalArgumentException("消息不能为空");
         }
         
-        // 长度限制
         if (request.getMessage().length() > 10000) {
             throw new IllegalArgumentException("消息长度超过限制");
         }
         
-        // 提供商校验
         if (request.getProvider() != null) {
             Set<String> validProviders = Set.of("openai", "dashscope", "deepseek", "minimax");
             if (!validProviders.contains(request.getProvider().toLowerCase())) {
@@ -170,6 +192,16 @@ function escapeHtml(str) {
 }
 ```
 
+**防护层级：**
+
+| 层级 | 措施 | 描述 |
+|-----|------|-----|
+| 解析器 | escapeHtml() | 所有文本内容经过 HTML 转义 |
+| 代码块 | escapeHtml(text) | 代码块内容单独转义 |
+| 链接 | escapeHtml(url) | URL 参数转义，防止 javascript: 协议 |
+| 图片 | escapeHtml(src) | 图片源地址转义 |
+| 行内代码 | 先提取保护 | 行内代码先提取，避免被其他规则影响 |
+
 ## 跨域安全 (CORS)
 
 ### CORS 配置
@@ -181,7 +213,7 @@ public class CorsConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
-            .allowedOrigins("http://localhost:5173")  // 仅允许开发环境
+            .allowedOrigins("http://localhost:5173")
             .allowedMethods("GET", "POST", "DELETE", "OPTIONS")
             .allowedHeaders("Content-Type")
             .allowCredentials(true)
@@ -193,10 +225,8 @@ public class CorsConfig implements WebMvcConfigurer {
 ### 生产环境建议
 
 ```java
-// 生产环境应配置为实际域名
 .allowedOrigins("https://your-domain.com")
 
-// 或使用环境变量
 @Value("${app.cors.allowed-origins}")
 private String[] allowedOrigins;
 ```
@@ -217,7 +247,7 @@ public class RateLimitInterceptor implements HandlerInterceptor {
                             Object handler) throws Exception {
         String clientId = getClientId(request);
         RateLimiter limiter = limiters.computeIfAbsent(clientId, 
-            k -> RateLimiter.create(10.0)); // 每秒 10 个请求
+            k -> RateLimiter.create(10.0));
         
         if (!limiter.tryAcquire()) {
             response.setStatus(429);
@@ -258,12 +288,10 @@ public class GlobalExceptionHandler {
 ```java
 @ExceptionHandler(Exception.class)
 public ResponseEntity<Map<String, String>> handleGeneral(Exception e) {
-    // 不向客户端暴露详细错误信息
     String message = e instanceof BusinessException 
         ? e.getMessage() 
         : "服务器内部错误";
     
-    // 记录详细错误到日志
     log.error("Error occurred", e);
     
     return ResponseEntity.internalServerError()
@@ -275,11 +303,12 @@ public ResponseEntity<Map<String, String>> handleGeneral(Exception e) {
 
 ### 开发阶段
 
-- [ ] API Key 不记录到日志
-- [ ] 敏感数据不返回给前端
-- [ ] 输入参数进行校验
-- [ ] 文件上传进行类型和大小检查
-- [ ] SQL 查询使用参数化（如有数据库）
+- [x] API Key 不记录到日志（使用 maskKey 脱敏）
+- [x] 敏感数据不返回给前端（只返回 keyId）
+- [x] 输入参数进行校验（非空/长度/提供商白名单）
+- [x] 文件上传进行类型和大小检查
+- [x] Markdown 解析器内置 XSS 防护
+- [x] 链接添加 target="_blank" rel="noopener"
 
 ### 部署阶段
 
@@ -323,21 +352,26 @@ public class SecurityHeaderFilter implements Filter {
 ### 敏感配置
 
 ```yaml
-# application.yaml
 ai:
   llm:
     openai:
-      api-key: ${OPENAI_API_KEY:}  # 从环境变量读取
+      api-key: ${OPENAI_API_KEY:}
+    dashscope:
+      api-key: ${DASHSCOPE_API_KEY:}
+    deepseek:
+      api-key: ${DEEPSEEK_API_KEY:}
+    minimax:
+      api-key: ${MINIMAX_API_KEY:}
 ```
 
 ### 部署配置
 
 ```bash
-# 设置环境变量
 export OPENAI_API_KEY=sk-xxx
 export DASHSCOPE_API_KEY=sk-xxx
+export DEEPSEEK_API_KEY=sk-xxx
+export MINIMAX_API_KEY=sk-xxx
 
-# 启动应用
 java -jar resume-optimizer.jar
 ```
 

@@ -14,14 +14,10 @@
 - 类名应为名词，描述其职责
 
 ```java
-// ✅ 正确
 public class ResumeAnalysisService { }
 public class AiAgentController { }
 public class WeightedRetrievalService { }
-
-// ❌ 错误
-public class resumeAnalysis { }
-public class AIAGENT_CONTROLLER { }
+public class AtsScoreResponse { }
 ```
 
 #### 方法命名
@@ -30,14 +26,10 @@ public class AIAGENT_CONTROLLER { }
 - 方法名应为动词或动词短语
 
 ```java
-// ✅ 正确
 public List<SearchResult> searchDocuments(String query) { }
 public void ingestDocument(String content, String source) { }
 private String buildContext(List<SearchResult> results) { }
-
-// ❌ 错误
-public List<SearchResult> SearchDocuments(String query) { }
-public void document_ingest(String content) { }
+private List<String> inferMatchedSkillsFromResume(AnalysisResponse basic, String resumeText) { }
 ```
 
 #### 变量命名
@@ -46,15 +38,10 @@ public void document_ingest(String content) { }
 - 变量名应具有描述性
 
 ```java
-// ✅ 正确
 String resumeContent = "...";
 List<SearchResult> searchResults = new ArrayList<>();
 int maxResults = 5;
-
-// ❌ 错误
-String ResumeContent = "...";
-List<SearchResult> sr = new ArrayList<>();
-int MAXRESULTS = 5;
+double weightedScore = 0.85;
 ```
 
 #### 常量命名
@@ -62,14 +49,10 @@ int MAXRESULTS = 5;
 - 使用 **UPPER_SNAKE_CASE**
 
 ```java
-// ✅ 正确
 public static final String DEFAULT_PROVIDER = "openai";
 private static final int MAX_RETRY_COUNT = 3;
+private static final long MAX_FILE_SIZE = 10 * 1024 * 1024;
 private static final Logger log = LoggerFactory.getLogger(MyClass.class);
-
-// ❌ 错误
-public static final String defaultProvider = "openai";
-private static final int maxRetryCount = 3;
 ```
 
 ### 代码组织
@@ -79,48 +62,42 @@ private static final int maxRetryCount = 3;
 ```java
 package com.flowerrivertears.resumeoptimizer.service;
 
-// 1. 导入语句
 import com.flowerrivertears.resumeoptimizer.model.*;
 import dev.langchain4j.model.chat.ChatModel;
 import org.springframework.stereotype.Service;
 import java.util.*;
 
-// 2. 类注释
-/**
- * AI 智能体服务
- * 提供 LLM 对话、简历生成、深度分析等功能
- */
 @Service
 public class AiAgentService {
 
-    // 3. 静态常量
     private static final Logger log = LoggerFactory.getLogger(AiAgentService.class);
     private static final String SYSTEM_PROMPT = "...";
     
-    // 4. 依赖注入
     @Autowired
     private ChatModel chatModel;
     
     @Autowired
     private RagService ragService;
     
-    // 5. 实例变量
-    
-    // 6. 构造方法
-    
-    // 7. 公共方法
     public AiChatResponse chat(AiChatRequest request) {
         // ...
     }
     
-    // 8. 私有方法
+    public AiChatResponse generateResume(String userInput, String provider, String keyId) {
+        // ...
+    }
+    
     private String buildContext(List<SearchResult> results) {
         // ...
     }
     
-    // 9. 内部类
-    private static class ParsedResponse {
+    private ParsedResponse parseThinkingContent(String response) {
         // ...
+    }
+    
+    private static class ParsedResponse {
+        String answer;
+        String thinking;
     }
 }
 ```
@@ -131,7 +108,6 @@ public class AiAgentService {
 - 超过时应拆分为多个私有方法
 
 ```java
-// ✅ 正确 - 拆分为多个方法
 public List<SearchResult> hybridSearch(String query, int maxResults) {
     List<SearchResult> vectorResults = vectorSearch(query, maxResults);
     List<SearchResult> keywordResults = keywordSearch(query, maxResults);
@@ -139,13 +115,10 @@ public List<SearchResult> hybridSearch(String query, int maxResults) {
     return rerank(merged, query);
 }
 
-private List<SearchResult> vectorSearch(String query, int maxResults) {
-    // ...
-}
-
-private List<SearchResult> keywordSearch(String query, int maxResults) {
-    // ...
-}
+private List<SearchResult> vectorSearch(String query, int maxResults) { }
+private List<SearchResult> keywordSearch(String query, int maxResults) { }
+private List<SearchResult> mergeResults(List<SearchResult> v, List<SearchResult> k) { }
+private List<SearchResult> rerank(List<SearchResult> results, String query) { }
 ```
 
 ### 注释规范
@@ -158,14 +131,9 @@ private List<SearchResult> keywordSearch(String query, int maxResults) {
  * 
  * 提供文档索引、向量检索、关键词检索、混合检索等功能。
  * 支持语义分块和权重排序。
- * 
- * @author FlowerRiverTears
- * @since 1.0.0
  */
 @Service
-public class RagService {
-    // ...
-}
+public class RagService { }
 ```
 
 #### 方法注释
@@ -181,20 +149,18 @@ public class RagService {
  * @param minScore 最小相似度阈值
  * @return 排序后的检索结果列表
  */
-public List<SearchResult> hybridSearch(String query, int maxResults, double minScore) {
-    // ...
-}
+public List<SearchResult> hybridSearch(String query, int maxResults, double minScore) { }
 ```
 
 #### 行内注释
 
 ```java
-// 计算 TF-IDF 分数
 double idf = Math.log((double) keywordIndex.size() / (docCount + 1));
 double tfidfScore = tf * idf;
 
-// 注意：此处使用 0.6 作为向量权重，可根据实际效果调整
 double vectorComponent = r.getVectorScore() * 0.6;
+double keywordComponent = r.getKeywordScore() * 0.25;
+double relevanceComponent = calculateRelevance(r, query) * 0.15;
 ```
 
 ### 异常处理
@@ -203,12 +169,9 @@ double vectorComponent = r.getVectorScore() * 0.6;
 
 ```java
 public void ingestDocument(String content, String source, String category) {
-    // 参数校验
     if (content == null || content.isBlank()) {
         throw new IllegalArgumentException("文档内容不能为空");
     }
-    
-    // 业务逻辑
     // ...
 }
 ```
@@ -218,16 +181,11 @@ public void ingestDocument(String content, String source, String category) {
 ```java
 public AiChatResponse chat(AiChatRequest request) {
     long startTime = System.currentTimeMillis();
-    log.info("AI Chat request: message='{}', provider={}", 
-             request.getMessage(), request.getProvider());
+    log.info("AI Chat request: provider={}", request.getProvider());
     
     try {
-        // 业务逻辑
         AiChatResponse response = doChat(request);
-        
-        long elapsed = System.currentTimeMillis() - startTime;
-        log.info("AI Chat completed in {}ms", elapsed);
-        
+        log.info("AI Chat completed in {}ms", System.currentTimeMillis() - startTime);
         return response;
     } catch (Exception e) {
         log.error("AI Chat failed: {}", e.getMessage(), e);
@@ -239,25 +197,43 @@ public AiChatResponse chat(AiChatRequest request) {
 ### Lombok 使用
 
 ```java
-// 数据类使用 @Data
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class AiChatRequest {
     private String message;
     private String provider;
     private String keyId;
+    private String context;
 }
 
-// 不可变类使用 @Builder
 @Data
 @Builder
-public class AiChatResponse {
-    private String answer;
-    private String thinking;
-    private String provider;
-    private String model;
-    private List<SearchResult> searchResults;
-    private long responseTimeMs;
+public class AtsScoreResponse {
+    private int overallScore;
+    private String grade;
+    private String gradeDescription;
+    private JobMatchScore jobMatchScore;
+    private StructureScore structureScore;
+    private ContentScore contentScore;
+    private List<SkillGap> skillGapDetails;
+    private List<OptimizationSuggestion> optimizationSuggestions;
 }
+```
+
+### LangChain4j API 使用
+
+```java
+// 使用 EmbeddingSearchRequest 替代已废弃的 findRelevant
+EmbeddingSearchRequest searchRequest = EmbeddingSearchRequest.builder()
+    .queryEmbedding(queryEmbedding)
+    .maxResults(maxResults)
+    .minScore(minScore)
+    .build();
+
+EmbeddingSearchResult<TextSegment> searchResult = embeddingStore.search(searchRequest);
+List<EmbeddingMatch<TextSegment>> matches = searchResult.matches();
 ```
 
 ## JavaScript/Vue 代码规范
@@ -265,19 +241,15 @@ public class AiChatResponse {
 ### 命名规范
 
 ```javascript
-// 变量 - camelCase
 const resumeContent = ref('')
 const isLoading = ref(false)
 
-// 函数 - camelCase
 const handleSubmit = async () => { }
 const formatTime = (ms) => { }
 
-// 组件 - PascalCase
 import AiChat from './components/AiChat.vue'
 import ResumeEditor from './components/ResumeEditor.vue'
 
-// 常量 - UPPER_SNAKE_CASE
 const API_BASE = '/api'
 const MAX_FILE_SIZE = 10 * 1024 * 1024
 ```
@@ -286,31 +258,25 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024
 
 ```vue
 <script setup>
-// 1. 导入
-import { ref, computed, onMounted } from 'vue'
-import { API, apiPost } from '../api.js'
+import { ref, computed, onMounted, nextTick, watch, onBeforeUnmount } from 'vue'
+import { API, apiPost, apiGet, renderMarkdown } from '../api.js'
 
-// 2. Props
 const props = defineProps({
   keyId: String,
   resumeContent: String
 })
 
-// 3. Emits
 const emit = defineEmits(['close', 'submit'])
 
-// 4. 响应式状态
 const isLoading = ref(false)
 const result = ref(null)
 const error = ref('')
 
-// 5. 计算属性
 const formattedResult = computed(() => {
   if (!result.value) return ''
   return JSON.stringify(result.value, null, 2)
 })
 
-// 6. 方法
 const fetchData = async () => {
   isLoading.value = true
   try {
@@ -322,9 +288,12 @@ const fetchData = async () => {
   }
 }
 
-// 7. 生命周期
 onMounted(() => {
   fetchData()
+})
+
+onBeforeUnmount(() => {
+  // 清理 ECharts 实例等
 })
 </script>
 
@@ -340,7 +309,6 @@ onMounted(() => {
 ### 异步处理
 
 ```javascript
-// ✅ 正确 - 使用 async/await 和 try-catch
 const handleSubmit = async () => {
   isLoading.value = true
   error.value = ''
@@ -356,48 +324,61 @@ const handleSubmit = async () => {
     isLoading.value = false
   }
 }
+```
 
-// ❌ 错误 - 缺少错误处理
-const handleSubmit = async () => {
-  const result = await apiPost(API.ai.chat, { message: inputMessage.value })
-  response.value = result
+### ECharts 使用规范
+
+```javascript
+let radarChart = null
+
+const initRadarChart = () => {
+  if (!radarChartRef.value) return
+  if (radarChart) radarChart.dispose()
+  radarChart = echarts.init(radarChartRef.value)
+  radarChart.setOption(option)
 }
+
+onBeforeUnmount(() => {
+  if (radarChart) {
+    radarChart.dispose()
+    radarChart = null
+  }
+})
 ```
 
 ### CSS 规范
 
 ```css
-/* 选择器命名 - 使用短横线分隔 */
 .ai-chat { }
 .message-content { }
 .code-block { }
+.result-item { }
+.btn-send { }
 
-/* 属性顺序 */
 .component {
-  /* 1. 布局 */
   display: flex;
   flex-direction: column;
-  
-  /* 2. 尺寸 */
   width: 100%;
-  height: 100%;
-  
-  /* 3. 外边距 */
   margin: 16px 0;
-  
-  /* 4. 内边距 */
   padding: 20px;
-  
-  /* 5. 边框 */
   border: 1px solid #e2e8f0;
   border-radius: 12px;
-  
-  /* 6. 背景 */
   background: #fff;
-  
-  /* 7. 其他 */
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
+```
+
+### Markdown 解析器规范
+
+```javascript
+// 使用 renderMarkdown 渲染 AI 回复
+<div v-html="renderMarkdown(msg.content)"></div>
+
+// 不直接使用 v-html 渲染用户输入
+<div>{{ userInput }}</div>
+
+// 自定义 Markdown 解析器不依赖第三方库
+// 所有文本经过 escapeHtml 转义，防止 XSS
 ```
 
 ## 配置文件规范
@@ -405,7 +386,6 @@ const handleSubmit = async () => {
 ### YAML 格式
 
 ```yaml
-# 使用 2 空格缩进
 ai:
   llm:
     provider: openai
@@ -413,12 +393,26 @@ ai:
       api-key: ${OPENAI_API_KEY}
       model-name: gpt-4o-mini
       
-# 使用注释说明配置项
 ai:
   weight:
-    enabled: true  # 是否启用权重排序
+    enabled: true
     dimensions:
-      skill-match: 0.35  # 技能匹配权重
+      skill-match: 0.35
+```
+
+### Vite 配置
+
+```javascript
+export default defineConfig({
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:9000',
+        changeOrigin: true
+      }
+    }
+  }
+})
 ```
 
 ## Git 提交规范
@@ -467,20 +461,25 @@ Closes #123
 - [ ] 异常被正确处理和记录
 - [ ] 没有硬编码的敏感信息
 - [ ] 日志级别使用正确
+- [ ] Lombok 注解使用正确（@Data + @Builder + @NoArgsConstructor）
+- [ ] LangChain4j API 使用最新版本（EmbeddingSearchRequest 替代 findRelevant）
 
 ### Vue 代码
 
 - [ ] 组件职责单一
 - [ ] Props 有类型定义
-- [ ] 异步操作有错误处理
-- [ ] 响应式数据使用正确
+- [ ] 异步操作有错误处理（try-catch-finally）
+- [ ] 响应式数据使用正确（ref/reactive/computed）
 - [ ] 样式使用 scoped
+- [ ] ECharts 实例正确销毁（dispose）
+- [ ] Markdown 使用 renderMarkdown 渲染，不直接 v-html
 
 ### 通用
 
 - [ ] 代码无冗余
 - [ ] 无明显的性能问题
 - [ ] 遵循项目目录结构
+- [ ] API Key 不出现在日志中
 
 ---
 
